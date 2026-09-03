@@ -73,19 +73,23 @@ jobs:
               test -d package
               test -d scripts
 
-              # Symlink our packages into the tree.
-              ln -sf /pkg/tailcat package/tailcat
+              # The tailcat Makefile uses
+              #   include ../../lang/golang/golang-package.mk
+              # which resolves correctly only when tailcat sits in
+              # feeds/packages/utils/ (sibling of feeds/packages/lang/).
+              mkdir -p feeds/packages/utils
+              ln -sf /pkg/tailcat feeds/packages/utils/tailcat
 
-              # luci-app-tailcat needs the luci feed; refresh feeds first.
+              # Install the golang feed (provides golang-package.mk).
               ./scripts/feeds update -a
-              ./scripts/feeds install luci
+              ./scripts/feeds install golang
+              ./scripts/feeds install tailcat
 
               # Place luci-app-tailcat into the luci feed applications dir.
+              ./scripts/feeds install luci
               mkdir -p feeds/luci/applications
               ln -sf /pkg/luci-app-tailcat feeds/luci/applications/luci-app-tailcat
-
-              # Install both packages via feeds.
-              ./scripts/feeds install tailcat luci-app-tailcat || true
+              ./scripts/feeds install luci-app-tailcat
 
               # Enable both packages in .config, then expand.
               echo "CONFIG_PACKAGE_tailcat=y" >> .config
@@ -93,8 +97,8 @@ jobs:
               make defconfig
 
               # Compile tailcat (Go-based, may take a while).
-              make -j"$(nproc)" package/tailcat/compile V=s || \
-                make -j1 package/tailcat/compile V=s
+              make -j"$(nproc)" package/feeds/packages/tailcat/compile V=s || \
+                make -j1 package/feeds/packages/tailcat/compile V=s
 
               # Compile luci-app-tailcat.
               make -j"$(nproc)" package/feeds/luci/luci-app-tailcat/compile V=s || \
