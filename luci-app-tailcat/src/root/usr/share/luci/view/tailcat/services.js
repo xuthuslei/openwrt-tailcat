@@ -16,15 +16,15 @@ return view.extend({
 		s.addremove = true;
 		s.addbtntitle = _('Add serve instance');
 		s.sortable = true;
-		s.anonymous = false;
+		s.anonymous = true;
 		s.maxcols = 6;
 		s.nodescriptions = true;
 		s.filter = function (section_id) {
-			var r = uci.get('tailcat', section_id, 'role');
-			return (!r || r === 'serve');
+		 var r = uci.get('tailcat', section_id, 'role');
+		 return (!r || r === 'serve');
 		};
 		s.addModalOptions = function (modal, section_id) {
-			uci.set('tailcat', section_id, 'role', 'serve');
+		 uci.set('tailcat', section_id, 'role', 'serve');
 		};
 
 		o = s.option(form.Value, 'name', _('Name'));

@@ -16,15 +16,15 @@ return view.extend({
 		s.addremove = true;
 		s.addbtntitle = _('Add forward instance');
 		s.sortable = true;
-		s.anonymous = false;
+		s.anonymous = true;
 		s.maxcols = 6;
 		s.nodescriptions = true;
 		s.filter = function (section_id) {
-			return uci.get('tailcat', section_id, 'role') === 'forward';
+		 return uci.get('tailcat', section_id, 'role') === 'forward';
 		};
 		s.addModalOptions = function (modal, section_id) {
-			uci.set('tailcat', section_id, 'role', 'forward');
-			uci.set('tailcat', section_id, 'bind_addr', '127.0.0.1');
+		 uci.set('tailcat', section_id, 'role', 'forward');
+		 uci.set('tailcat', section_id, 'bind_addr', '0.0.0.0');
 		};
 
 		o = s.option(form.Value, 'name', _('Name'));
