@@ -43,25 +43,25 @@ return view.extend({
 		o.value('recv', _('File drop box (recv)'));
 		o.default = 'ports';
 		o.editable = true;
-		o.modalonly = false;
+		o.modalonly = true;
 		o.onchange = function (ev, kind) {
-			var root = ev.target.closest('.cbi-section');
-			if (!root) return;
-			root.classList.toggle('tailcat-kind-ports', kind === 'ports');
-			root.classList.toggle('tailcat-kind-recv', kind === 'recv');
+		 var root = ev.target.closest('.cbi-section');
+		 if (!root) return;
+		 root.classList.toggle('tailcat-kind-ports', kind === 'ports');
+		 root.classList.toggle('tailcat-kind-recv', kind === 'recv');
 		};
 
 		o = s.option(form.Value, 'serve_ports', _('Ports (comma list or "all")'));
 		o.datatype = 'string';
 		o.placeholder = '8080,8443';
 		o.depends('serve_kind', 'ports');
-		o.modalonly = false;
+		o.modalonly = true;
 
 		o = s.option(form.Value, 'recv_dir', _('Receive directory'));
 		o.datatype = 'directory';
 		o.placeholder = '/root/tailcat-inbox';
 		o.depends('serve_kind', 'recv');
-		o.modalonly = false;
+		o.modalonly = true;
 
 		o = s.option(form.Flag, 'verbose', _('Verbose logs'));
 		o.rmempty = false;

@@ -41,32 +41,26 @@ return view.extend({
 		o.datatype = 'string';
 		o.placeholder = 'tcXXXXXXXXXXXXXXXXXX';
 		o.rmempty = false;
-		o.modalonly = false;
-
-		o = s.option(form.Value, 'bind_addr', _('Local bind address'));
-		o.datatype = 'ipaddr';
-		o.placeholder = '127.0.0.1';
-		o.rmempty = false;
-		o.modalonly = false;
+		o.modalonly = true;
 
 		o = s.option(form.Value, 'bind_addr', _('Local bind address'));
 		o.datatype = 'ipaddr';
 		o.placeholder = '0.0.0.0';
 		o.default = '0.0.0.0';
 		o.rmempty = false;
-		o.modalonly = false;
+		o.modalonly = true;
 		o.description = _('As a router, forward instances bind 0.0.0.0 by default so LAN clients can reach them.');
 
 		o = s.option(form.Value, 'forwards', _('Port forwards (local:remote pairs)'));
 		o.datatype = 'string';
 		o.placeholder = '18080:8080 13306:3306';
 		o.rmempty = false;
-		o.modalonly = false;
+		o.modalonly = true;
 
 		o = s.option(form.Flag, 'open_firewall', _('Open WAN firewall ports'));
 		o.rmempty = false;
 		o.default = '0';
-		o.modalonly = false;
+		o.modalonly = true;
 		o.editable = true;
 		o.description = _('When enabled, open the WAN-side firewall for the local forward ports so external (Internet) hosts can reach them. LAN access is always available. Default is off to avoid exposing ports to the Internet.');
 
