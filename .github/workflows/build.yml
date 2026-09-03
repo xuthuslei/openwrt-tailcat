@@ -128,21 +128,22 @@ jobs:
           # Hand-build an OpenWrt-compatible ipk (gzip-tar, not ar).
           # Layout: debian-binary + control.tar.gz + data.tar.gz,
           # outer container is gzip-compressed tar.
-          PKG="pkg-root"
+          WORK="$PWD"
+          PKG="$WORK/pkg-root"
 
           # 1. debian-binary (version line)
-          printf '2.0\n' > debian-binary
+          printf '2.0\n' > "$WORK/debian-binary"
 
           # 2. control.tar.gz from CONTROL/
-          ( cd "$PKG/CONTROL" && tar czf ../../../control.tar.gz . )
+          ( cd "$PKG/CONTROL" && tar czf "$WORK/control.tar.gz" . )
 
           # 3. data.tar.gz from package tree (excluding CONTROL/)
-          ( cd "$PKG" && tar czf ../../data.tar.gz \
+          ( cd "$PKG" && tar czf "$WORK/data.tar.gz" \
               --exclude='./CONTROL' --exclude='./CONTROL/*' . )
 
           # 4. assemble ipk: gzip-compressed tar of the 3 files
-          IPK="out/tailcat_${TAILCAT_VERSION}-1_${{ matrix.opkg_arch }}.ipk"
-          tar czf "$IPK" ./debian-binary ./control.tar.gz ./data.tar.gz
+          IPK="$WORK/out/tailcat_${TAILCAT_VERSION}-1_${{ matrix.opkg_arch }}.ipk"
+          tar czf "$IPK" -C "$WORK" ./debian-binary ./control.tar.gz ./data.tar.gz
           ls -la out/
 
       - name: Upload artifacts
@@ -231,13 +232,14 @@ jobs:
           set -eux
           mkdir -p out
           # Hand-build an OpenWrt-compatible ipk (gzip-tar, not ar).
-          PKG="pkg-root"
-          printf '2.0\n' > debian-binary
-          ( cd "$PKG/CONTROL" && tar czf ../../../control.tar.gz . )
-          ( cd "$PKG" && tar czf ../../data.tar.gz \
+          WORK="$PWD"
+          PKG="$WORK/pkg-root"
+          printf '2.0\n' > "$WORK/debian-binary"
+          ( cd "$PKG/CONTROL" && tar czf "$WORK/control.tar.gz" . )
+          ( cd "$PKG" && tar czf "$WORK/data.tar.gz" \
               --exclude='./CONTROL' --exclude='./CONTROL/*' . )
-          IPK="out/luci-app-tailcat_0.1.0-1_all.ipk"
-          tar czf "$IPK" ./debian-binary ./control.tar.gz ./data.tar.gz
+          IPK="$WORK/out/luci-app-tailcat_0.1.0-1_all.ipk"
+          tar czf "$IPK" -C "$WORK" ./debian-binary ./control.tar.gz ./data.tar.gz
           ls -la out/
 
       - name: Upload artifacts
