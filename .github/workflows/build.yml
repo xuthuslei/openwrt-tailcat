@@ -125,8 +125,9 @@ jobs:
         run: |
           set -eux
           mkdir -p out
-          # opkg-build writes the .ipk next to the package dir.
-          opkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root
+          # -a tar.gz: OpenWrt opkg expects gzip tarballs, not ar archives.
+          # -Z xz would also work on modern opkg; tar.gz is safest.
+          opkg-build -a tar.gz -o "$(id -un)" -g "$(id -gn)" pkg-root
           mv pkg-root/*.ipk out/ 2>/dev/null || mv *.ipk out/ 2>/dev/null || true
           ls -la out/
 
@@ -215,8 +216,8 @@ jobs:
         run: |
           set -eux
           mkdir -p out
-          # opkg-build writes the .ipk next to the package dir.
-          opkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root
+          # -a tar.gz: OpenWrt opkg expects gzip tarballs, not ar archives.
+          opkg-build -a tar.gz -o "$(id -un)" -g "$(id -gn)" pkg-root
           mv pkg-root/*.ipk out/ 2>/dev/null || mv *.ipk out/ 2>/dev/null || true
           ls -la out/
 
