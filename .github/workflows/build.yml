@@ -1,19 +1,15 @@
 #
-# Multi-arch build of tailcat + luci-app-tailcat ipk.
+# Build tailcat + luci-app-tailcat ipk.
 #
-# Runs inside the official OpenWrt SDK container. Per the OpenWrt
-# docker repo, the SDK image's WORKDIR is /builder/ and a setup.sh
-# script must be run first to unpack the SDK tarball for that target.
+# Strategy (simple, no OpenWrt SDK / Go toolchain needed):
+#   1. Download prebuilt tailcat binaries from the official
+#      tailscale/tailcat GitHub Releases (linux amd64/arm64/armv7).
+#   2. Assemble an ipk package tree using our files/ layout.
+#   3. Pack with opkg-utils `ipkg-build`.
 #
-# Flow per arch:
-#   1. docker run, mount repo read-only at /pkg
-#   2. ./setup.sh  (unpacks SDK into /builder/openwrt-sdk-*)
-#   3. cd into the unpacked SDK dir
-#   4. symlink our packages into package/ and feeds/luci/applications/
-#   5. ./scripts/feeds update -a && ./scripts/feeds install -a
-#   6. make defconfig with both packages enabled
-#   7. compile both packages
-#   8. copy resulting .ipk out to the host
+# luci-app-tailcat is pure Lua/JS + config, so it is packed the
+# same way (no cross-compilation required).
+#
 
 name: Build ipk
 
@@ -24,119 +20,203 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  TAILCAT_VERSION: "0.5.0"
+
 jobs:
-  build:
-    name: Build for ${{ matrix.tag }}
+  build-tailcat:
+    name: tailcat ipk for ${{ matrix.goarch }}
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        # SDK image tags are plain arch/target names.
-        tag: [x86_64, aarch64_cortex-a76]
+        # goarch  →  opkg arch mapping
+        include:
+          - goarch: amd64
+            opkg_arch: x86_64
+          - goarch: arm64
+            opkg_arch: aarch64_cortexa53
+          - goarch: armv7
+            opkg_arch: arm_cortex-a7_neon-vfpv4
 
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
 
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-                      /usr/local/.ghcup /usr/lib/firefox /usr/lib/jvm \
-                      /usr/lib/rustlib 2>/dev/null || true
-          sudo apt-get clean
-          df -h /
-
-      - name: Pull OpenWrt SDK
-        run: |
-          docker pull openwrt/sdk:${{ matrix.tag }}
-          df -h /
-
-      - name: Build packages
+      - name: Install opkg-utils
         run: |
           set -eux
-          # Mount the repo read-only at /pkg so the SDK can symlink
-          # our packages into its tree.
-          docker run --rm \
-            -v "$PWD:/pkg:ro" \
-            openwrt/sdk:${{ matrix.tag }} \
-            /bin/bash -c '
-              set -eux
-              cd /builder
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq opkg-utils tar gzip
+          which ipkg-build
 
-              # The SDK is already unpacked at /builder (Makefile,
-              # package/, scripts/, staging_dir/ all present).
-              # Run setup.sh in case it needs to fix up symlinks.
-              ./setup.sh || true
-
-              # Sanity-check we are in an SDK tree.
-              test -f Makefile
-              test -d package
-              test -d scripts
-
-              # The tailcat Makefile uses
-              #   include ../../lang/golang/golang-package.mk
-              # which resolves correctly only when tailcat sits in
-              # feeds/packages/utils/ (sibling of feeds/packages/lang/).
-              #
-              # IMPORTANT: feeds update -a re-clones feeds/packages/,
-              # so we must add our symlink AFTER feeds update, not before.
-              ./scripts/feeds update -a
-
-              # Now add tailcat into the packages feed.
-              mkdir -p feeds/packages/utils
-              ln -sf /pkg/tailcat feeds/packages/utils/tailcat
-
-              # Install the golang feed (provides golang-package.mk),
-              # then install tailcat (creates package/feeds/packages/tailcat).
-              ./scripts/feeds install golang
-              ./scripts/feeds install -f packages tailcat
-
-              # luci-app-tailcat: install luci feed, add our app, install it.
-              ./scripts/feeds install luci
-              mkdir -p feeds/luci/applications
-              ln -sf /pkg/luci-app-tailcat feeds/luci/applications/luci-app-tailcat
-              ./scripts/feeds install -f luci luci-app-tailcat
-
-              # Enable both packages in .config, then expand.
-              echo "CONFIG_PACKAGE_tailcat=y" >> .config
-              echo "CONFIG_PACKAGE_luci-app-tailcat=y" >> .config
-              make defconfig
-
-              # Compile tailcat (Go-based, may take a while).
-              make -j"$(nproc)" package/feeds/packages/tailcat/compile V=s || \
-                make -j1 package/feeds/packages/tailcat/compile V=s
-
-              # Compile luci-app-tailcat.
-              make -j"$(nproc)" package/feeds/luci/luci-app-tailcat/compile V=s || \
-                make -j1 package/feeds/luci/luci-app-tailcat/compile V=s
-            '
-
-      - name: Collect built ipk
+      - name: Download tailcat binary
         run: |
           set -eux
-          mkdir -p artifacts
-          docker run --rm \
-            -v "$PWD/artifacts:/out" \
-            openwrt/sdk:${{ matrix.tag }} \
-            /bin/bash -c '
-              set -eux
-              cd /builder
-              find bin -name "tailcat*.ipk" -exec cp {} /out/ \;
-              find bin -name "luci-app-tailcat*.ipk" -exec cp {} /out/ \;
-            '
-          ls -la artifacts/
+          mkdir -p dl
+          curl -fsSL \
+            "https://github.com/tailscale/tailcat/releases/download/v${TAILCAT_VERSION}/tailcat_${TAILCAT_VERSION}_linux_${{ matrix.goarch }}.tar.gz" \
+            -o dl/tailcat.tar.gz
+          tar -xzf dl/tailcat.tar.gz -C dl
+          find dl -type f -name 'tailcat' -o -name 'tailcat_*'
+          # Locate the tailcat binary (inside a dir or at root).
+          BIN=$(find dl -type f -name 'tailcat' | head -1)
+          [ -n "$BIN" ] || BIN=$(find dl -type f -name 'tailcat_*' | head -1)
+          [ -n "$BIN" ] || { echo "tailcat binary not found"; exit 1; }
+          chmod +x "$BIN"
+          echo "TAILCAT_BIN=$BIN" >> "$GITHUB_ENV"
+
+      - name: Assemble package tree
+        run: |
+          set -eux
+          PKGROOT="pkg-root"
+          mkdir -p "$PKGROOT/usr/bin"
+          cp "$TAILCAT_BIN" "$PKGROOT/usr/bin/tailcat"
+          chmod 0755 "$PKGROOT/usr/bin/tailcat"
+
+          # init script, UCI config, instance helper
+          mkdir -p "$PKGROOT/etc/init.d"
+          cp tailcat/files/etc/init.d/tailcat "$PKGROOT/etc/init.d/tailcat"
+          chmod 0755 "$PKGROOT/etc/init.d/tailcat"
+
+          mkdir -p "$PKGROOT/etc/config"
+          cp tailcat/files/etc/config/tailcat "$PKGROOT/etc/config/tailcat"
+
+          mkdir -p "$PKGROOT/usr/lib/tailcat"
+          cp tailcat/files/usr/lib/tailcat/tailcat-instance.sh \
+             "$PKGROOT/usr/lib/tailcat/tailcat-instance.sh"
+          chmod 0755 "$PKGROOT/usr/lib/tailcat/tailcat-instance.sh"
+
+          # CONTROL directory with metadata for ipkg-build
+          mkdir -p "$PKGROOT/CONTROL"
+          cat > "$PKGROOT/CONTROL/control" <<EOF
+          Package: tailcat
+          Version: ${TAILCAT_VERSION}-1
+          Architecture: ${{ matrix.opkg_arch }}
+          Maintainer: OpenWrt-Tailcat Contributors
+          Section: net
+          Priority: optional
+          Depends: ca-bundle
+          Description: Tailcat - netcat over Tailscale's data plane.
+           Point-to-point WireGuard-encrypted tunnels between two
+           machines with DERP as the NAT-hole-punching side channel.
+           No account, no root, userspace only.
+          Source: https://github.com/tailscale/tailcat
+          EOF
+          # conffiles
+          echo "/etc/config/tailcat" > "$PKGROOT/CONTROL/conffiles"
+          # postinst to enable service
+          cat > "$PKGROOT/CONTROL/postinst" <<'EOF'
+          #!/bin/sh
+          [ -n "$IPKG_INSTROOT" ] && exit 0
+          /etc/init.d/tailcat enable 2>/dev/null || true
+          exit 0
+          EOF
+          chmod 0755 "$PKGROOT/CONTROL/postinst"
+
+      - name: Build ipk
+        run: |
+          set -eux
+          mkdir -p out
+          ipkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root out
+          ls -la out/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ipk-${{ matrix.tag }}
-          path: artifacts/*.ipk
+          name: tailcat-${{ matrix.opkg_arch }}
+          path: out/*.ipk
+          if-no-files-found: error
+          retention-days: 30
+
+  build-luci:
+    name: luci-app-tailcat ipk
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Install opkg-utils
+        run: |
+          set -eux
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq opkg-utils
+          which ipkg-build
+
+      - name: Assemble package tree
+        run: |
+          set -eux
+          PKGROOT="pkg-root"
+          mkdir -p "$PKGROOT"
+
+          # Views (LuCI JS modules)
+          mkdir -p "$PKGROOT/www/luci-static/resources/view/tailcat"
+          cp luci-app-tailcat/src/root/usr/share/luci/view/tailcat/*.js \
+             "$PKGROOT/www/luci-static/resources/view/tailcat/"
+
+          # Controller
+          mkdir -p "$PKGROOT/usr/share/luci/controller"
+          cp -r luci-app-tailcat/src/root/usr/share/luci/controller/tailcat.js \
+             "$PKGROOT/usr/share/luci/controller/"
+
+          # Menu registration
+          mkdir -p "$PKGROOT/usr/share/luci/menu.d"
+          cp luci-app-tailcat/src/usr/share/luci/menu.d/*.json \
+             "$PKGROOT/usr/share/luci/menu.d/"
+
+          # rpcd ACL
+          mkdir -p "$PKGROOT/usr/share/rpcd/acl.d"
+          cp luci-app-tailcat/src/usr/share/rpcd/acl.d/*.json \
+             "$PKGROOT/usr/share/rpcd/acl.d/"
+
+          # i18n
+          mkdir -p "$PKGROOT/usr/share/luci/i18n"
+          cp luci-app-tailcat/po/en/*.po "$PKGROOT/usr/share/luci/i18n/" 2>/dev/null || true
+          cp luci-app-tailcat/po/zh-cn/*.po "$PKGROOT/usr/share/luci/i18n/" 2>/dev/null || true
+
+          # CONTROL
+          mkdir -p "$PKGROOT/CONTROL"
+          cat > "$PKGROOT/CONTROL/control" <<EOF
+          Package: luci-app-tailcat
+          Version: 0.1.0-1
+          Architecture: all
+          Maintainer: OpenWrt-Tailcat Contributors
+          Section: luci
+          Priority: optional
+          Depends: tailcat
+          Description: LuCI interface for the tailcat service.
+           Create local tailcat services (serve local ports, SSH,
+           file drop box) and forward remote tailcat services to
+           local ports, all through the web UI.
+          EOF
+          cat > "$PKGROOT/CONTROL/postinst" <<'EOF'
+          #!/bin/sh
+          [ -n "$IPKG_INSTROOT" ] && exit 0
+          killall -HUP rpcd 2>/dev/null || true
+          rm -f /var/luci-indexcache 2>/dev/null || true
+          exit 0
+          EOF
+          chmod 0755 "$PKGROOT/CONTROL/postinst"
+
+      - name: Build ipk
+        run: |
+          set -eux
+          mkdir -p out
+          ipkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root out
+          ls -la out/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-app-tailcat
+          path: out/*.ipk
           if-no-files-found: error
           retention-days: 30
 
   release:
     name: Attach ipk to snapshot release
-    needs: build
+    needs: [build-tailcat, build-luci]
     runs-on: ubuntu-22.04
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
@@ -156,6 +236,7 @@ jobs:
           name: Snapshot build ${{ github.sha }}
           body: |
             Automated build from commit ${{ github.sha }}.
-            Built against OpenWrt SDK (target tags in artifact names).
+            tailcat v${{ env.TAILCAT_VERSION }} prebuilt binaries
+            repackaged as OpenWrt ipk.
           files: all-artifacts/*.ipk
           prerelease: true
