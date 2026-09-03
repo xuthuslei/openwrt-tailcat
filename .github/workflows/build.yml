@@ -1,15 +1,19 @@
 #
 # Multi-arch build of tailcat + luci-app-tailcat ipk.
 #
-# Runs inside the official OpenWrt SDK container (tag = arch name,
-# e.g. openwrt/sdk:x86_64). The SDK image is ~350 MB and ships a
-# pre-configured OpenWrt tree at /home/build/openwrt with a .config
-# already set for that target.
+# Runs inside the official OpenWrt SDK container. Per the OpenWrt
+# docker repo, the SDK image's WORKDIR is /builder/ and a setup.sh
+# script must be run first to unpack the SDK tarball for that target.
 #
-# We mount our repo into the container, symlink our two packages into
-# the tree at the paths their Makefiles expect, refresh feeds so
-# luci.mk / golang-package.mk are available, then compile.
-#
+# Flow per arch:
+#   1. docker run, mount repo read-only at /pkg
+#   2. ./setup.sh  (unpacks SDK into /builder/openwrt-sdk-*)
+#   3. cd into the unpacked SDK dir
+#   4. symlink our packages into package/ and feeds/luci/applications/
+#   5. ./scripts/feeds update -a && ./scripts/feeds install -a
+#   6. make defconfig with both packages enabled
+#   7. compile both packages
+#   8. copy resulting .ipk out to the host
 
 name: Build ipk
 
@@ -27,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # SDK image tags are plain arch names.
+        # SDK image tags are plain arch/target names.
         tag: [x86_64, aarch64_cortex-a76]
 
     steps:
@@ -50,16 +54,27 @@ jobs:
       - name: Build packages
         run: |
           set -eux
-          # Single docker run: mount the repo read-only at /pkg,
-          # symlink packages into the SDK tree, refresh feeds,
-          # enable both packages in .config, and compile.
+          # Mount the repo read-only at /pkg so the SDK can symlink
+          # our packages into its tree.
           docker run --rm \
             -v "$PWD:/pkg:ro" \
-            -e TARGET_TAG=${{ matrix.tag }} \
             openwrt/sdk:${{ matrix.tag }} \
             /bin/bash -c '
               set -eux
-              cd /home/build/openwrt
+              cd /builder
+
+              # Unpack the SDK for this target.
+              ./setup.sh
+
+              # Find the unpacked SDK directory.
+              SDK_DIR=$(find /builder -maxdepth 1 -type d -name "openwrt-sdk-*" | head -1)
+              if [ -z "$SDK_DIR" ]; then
+                echo "ERROR: could not find unpacked SDK dir under /builder"
+                ls -la /builder
+                exit 1
+              fi
+              echo "SDK dir: $SDK_DIR"
+              cd "$SDK_DIR"
 
               # Symlink our packages into the tree.
               ln -sf /pkg/tailcat package/tailcat
@@ -68,14 +83,14 @@ jobs:
               ./scripts/feeds update -a
               ./scripts/feeds install luci
 
-              # Now we can place luci-app-tailcat into feeds/luci/applications.
+              # Place luci-app-tailcat into the luci feed applications dir.
+              mkdir -p feeds/luci/applications
               ln -sf /pkg/luci-app-tailcat feeds/luci/applications/luci-app-tailcat
 
-              # Re-run feeds install to pick up luci-app-tailcat.
-              ./scripts/feeds install luci-app-tailcat
+              # Install both packages via feeds.
+              ./scripts/feeds install tailcat luci-app-tailcat || true
 
               # Enable both packages in .config, then expand.
-              ./scripts/feeds install tailcat luci-app-tailcat || true
               echo "CONFIG_PACKAGE_tailcat=y" >> .config
               echo "CONFIG_PACKAGE_luci-app-tailcat=y" >> .config
               make defconfig
@@ -98,7 +113,8 @@ jobs:
             openwrt/sdk:${{ matrix.tag }} \
             /bin/bash -c '
               set -eux
-              cd /home/build/openwrt
+              SDK_DIR=$(find /builder -maxdepth 1 -type d -name "openwrt-sdk-*" | head -1)
+              cd "$SDK_DIR"
               find bin -name "tailcat*.ipk" -exec cp {} /out/ \;
               find bin -name "luci-app-tailcat*.ipk" -exec cp {} /out/ \;
             '
