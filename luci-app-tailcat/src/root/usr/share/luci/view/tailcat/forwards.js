@@ -1,50 +1,31 @@
-'use strict';
-//
-// View: tailcat/forwards
-//
-// Manages "forward" role instances — connecting to a remote tailcat
-// server address and binding local ports that forward into the remote
-// service. Each row is a UCI 'instance' section with role=forward.
-//
-// Key fields:
-//   remote_addr  the tailcat address to dial, e.g. tcXXXXX
-//   bind_addr    local bind address (default 127.0.0.1)
-//   forwards     space-separated local:remote pairs (or bare port = port:port)
-//
+'use strict';'require view';'require form';'require fs';'require uci';
 
-return L.view.extend({
+return view.extend({
 	load: function () {
-		var luci = window.L || L;
-		var uci = luci.require('uci').default;
-		return uci.load('tailcat').then(function () { return uci; });
+		return uci.load('tailcat');
 	},
 
-	render: function (uci) {
-		var luci = window.L || L;
-		var form = luci.require('form').default;
+	render: function () {
+		var m, s, o;
 
-		var m = new form.Map('tailcat',
+		m = new form.Map('tailcat',
 			_('Remote Forwards (forward)'),
-			_('A <em>forward</em> instance connects to a remote tailcat server address and binds one or more local TCP ports that forward into the remote service. Use this to make a remote tailcat server\'s ports reachable as ordinary local ports on this router.'));
+			_('A <em>forward</em> instance connects to a remote tailcat server address and binds local TCP ports.'));
 
-		var s = m.section(form.GridSection, 'instance', _('Forward Instances'));
+		s = m.section(form.GridSection, 'instance', _('Forward Instances'));
 		s.addremove = true;
 		s.addbtntitle = _('Add forward instance');
 		s.sortable = true;
 		s.anonymous = false;
 		s.maxcols = 6;
 		s.nodescriptions = true;
-		// Only show sections whose role is forward.
 		s.filter = function (section_id) {
 			return uci.get('tailcat', section_id, 'role') === 'forward';
 		};
-		// When adding a new section, default its role to 'forward'.
 		s.addModalOptions = function (modal, section_id) {
 			uci.set('tailcat', section_id, 'role', 'forward');
 			uci.set('tailcat', section_id, 'bind_addr', '127.0.0.1');
 		};
-
-		var o;
 
 		o = s.option(form.Value, 'name', _('Name'));
 		o.placeholder = 'remote_web';
@@ -68,11 +49,26 @@ return L.view.extend({
 		o.rmempty = false;
 		o.modalonly = false;
 
+		o = s.option(form.Value, 'bind_addr', _('Local bind address'));
+		o.datatype = 'ipaddr';
+		o.placeholder = '0.0.0.0';
+		o.default = '0.0.0.0';
+		o.rmempty = false;
+		o.modalonly = false;
+		o.description = _('As a router, forward instances bind 0.0.0.0 by default so LAN clients can reach them.');
+
 		o = s.option(form.Value, 'forwards', _('Port forwards (local:remote pairs)'));
 		o.datatype = 'string';
 		o.placeholder = '18080:8080 13306:3306';
 		o.rmempty = false;
 		o.modalonly = false;
+
+		o = s.option(form.Flag, 'open_firewall', _('Open WAN firewall ports'));
+		o.rmempty = false;
+		o.default = '0';
+		o.modalonly = false;
+		o.editable = true;
+		o.description = _('When enabled, open the WAN-side firewall for the local forward ports so external (Internet) hosts can reach them. LAN access is always available. Default is off to avoid exposing ports to the Internet.');
 
 		o = s.option(form.Flag, 'verbose', _('Verbose logs'));
 		o.rmempty = false;
@@ -87,8 +83,6 @@ return L.view.extend({
 	},
 
 	onApply: function () {
-		var luci = window.L || L;
-		var fs = luci.require('fs').default;
 		return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () { return true; });
-	},
+	}
 });

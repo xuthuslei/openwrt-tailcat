@@ -3,7 +3,12 @@
 # Init script for tailcat service instances.
 #
 # Reads UCI config /etc/config/tailcat and spawns one tailcat
-# process per configured instance (serve or forward).
+# process per configured instance (serve or forward) via procd.
+#
+# For forward instances with open_firewall=1, a firewall rule is
+# added so the bound local port(s) are reachable from the WAN side.
+# The rule is removed when the instance is stopped or disabled.
+# Default is open_firewall=0 (closed) to avoid exposing ports.
 #
 
 USE_PROCD=1
@@ -14,6 +19,83 @@ TAILCAT_BIN="${TAILCAT_BIN:-/usr/bin/tailcat}"
 INSTANCE_HELPER="/usr/lib/tailcat/tailcat-instance.sh"
 CONFIG_NAME="tailcat"
 
+# --- firewall rule management -------------------------------------------
+#
+# Rule naming convention: firewall.@rule[name="tailcat-<section>"]
+# We add/delete via uci so the change persists and fw4 reload picks
+# it up.
+#
+
+# fw_rule_name <section>
+fw_rule_name() {
+	echo "tailcat-$1"
+}
+
+# fw_add_rule <section> <port> [proto]
+# Adds a firewall rule accepting tcp/udp <port> from wan.
+# Idempotent: if the rule already exists, do nothing.
+fw_add_rule() {
+	local section="$1"
+	local port="$2"
+	local proto="${3:-tcp}"
+	local rname sid
+
+	rname=$(fw_rule_name "$section")
+
+	# Remove existing rule first (idempotent).
+	fw_del_rule "$section" 2>/dev/null
+
+	# uci add returns the new section id; capture and use it
+	# directly instead of @rule[-1] indexing.
+	sid=$(uci -q add firewall rule)
+	[ -n "$sid" ] || return 1
+
+	# NOTE: uci set values must NOT be quoted — the quotes would
+	# be stored as part of the value (uci handles escaping itself).
+	uci -q set "firewall.$sid.name=$rname"
+	uci -q set "firewall.$sid.src=wan"
+	uci -q set "firewall.$sid.proto=$proto"
+	uci -q set "firewall.$sid.dest_port=$port"
+	uci -q set "firewall.$sid.target=ACCEPT"
+	uci commit firewall
+}
+
+# fw_del_rule <section>
+# Removes the firewall rule named tailcat-<section>, if any.
+fw_del_rule() {
+	local section="$1"
+	local rname sid val
+	rname=$(fw_rule_name "$section")
+
+	# uci show prints lines like:
+	#   firewall.cfg12345.name='tailcat-vps_ssh'
+	# Extract section id, delete if name matches.
+	uci -q show firewall 2>/dev/null | while IFS= read -r line; do
+		case "$line" in
+			firewall.*.name=*)
+				sid=${line%%.name=*}
+				sid=${sid#firewall.}
+				val=${line#*.name=}
+				# strip surrounding single quotes
+				val=${val#\'}
+				val=${val%\'}
+				if [ "$val" = "$rname" ]; then
+					uci -q delete "firewall.$sid" 2>/dev/null
+				fi
+				;;
+		esac
+	done
+	uci commit firewall 2>/dev/null
+}
+
+# fw_reload
+# Reload the firewall so new/deleted rules take effect immediately.
+fw_reload() {
+	/etc/init.d/firewall reload 2>/dev/null || /etc/init.d/firewall restart 2>/dev/null
+}
+
+# --- service lifecycle ---------------------------------------------------
+
 start_service() {
 	local enabled
 	config_load "$CONFIG_NAME"
@@ -23,66 +105,87 @@ start_service() {
 		return 0
 	}
 
-	local instance
-	for instance in $(config_foreach echo_instance instance); do
-		: # placeholder, real loop below
-	done
-
 	config_foreach start_instance instance
-}
-
-# Echo the instance name so the caller can enumerate them.
-echo_instance() {
-	local section="$1"
-	echo "$section"
 }
 
 start_instance() {
 	local section="$1"
-	local enabled
-	config_get enabled "$section" enabled 0
-	[ "$enabled" = "1" ] || return 0
+	local argv role log_file
 
-	local role
+	argv=$("$INSTANCE_HELPER" "$section" 2>/dev/null)
+	[ -n "$argv" ] || return 0
+
 	config_get role "$section" role serve
-	[ "$role" = "serve" ] || [ "$role" = "forward" ] || {
-		echo "tailcat[$section]: unknown role '$role'" >&2
-		return 0
-	}
+	config_get log_file "$section" log_file ""
 
-	"$INSTANCE_HELPER" "$section" "$role" | while IFS= read -r line; do
-		# Lines starting with "PROCD:" carry procd command/env/params.
-		case "$line" in
-			"PROCD:COMMAND="*)   procd_set_param command ${line#PROCD:COMMAND=} ;;
-			"PROCD:ENV="*)       local kv="${line#PROCD:ENV=}"; procd_set_param env "${kv%%=*}=${kv#*=}" ;;
-			"PROCD:PARAM="*)     procd_append_param command ${line#PROCD:PARAM=} ;;
-			"PROCD:INSTANCE="*)  procd_open_instance -1; procd_set_param name "${line#PROCD:INSTANCE=}" ;;
-			"PROCD:LIMIT="*)     procd_set_param limits ${line#PROCD:LIMIT=} ;;
-			"PROCD:ERROR="*)     echo "tailcat[$section]: ${line#PROCD:ERROR=}" >&2 ;;
-			"PROCD:CLOSE")       procd_close_instance ;;
-		esac
-	done
+	# If this forward instance requests an open firewall, add the
+	# rule(s) for its local port(s) before launching procd.
+	if [ "$role" = "forward" ]; then
+		local open_fw
+		config_get open_fw "$section" open_firewall 0
+		if [ "$open_fw" = "1" ]; then
+			local forwards p
+			config_get forwards "$section" forwards ""
+			for p in $forwards; do
+				# mapping is [local:]remote; the local port
+				# is what we need to open.
+				local lport="${p%%:*}"
+				[ -n "$lport" ] && fw_add_rule "$section" "$lport" tcp
+			done
+			fw_reload
+		else
+			# Ensure no stale rule remains when open_firewall=0.
+			fw_del_rule "$section"
+			fw_reload
+		fi
+	fi
+
+	procd_open_instance "$section"
+	eval set -- $argv
+	procd_set_param command "$@"
+	procd_set_param respawn
+
+	procd_set_param stdout "${log_file:-/dev/null}"
+	procd_set_param stderr "${log_file:-/dev/null}"
+
+	procd_close_instance
+
+	echo "tailcat[$section]: started (role=$role)" >&2
 }
 
 reload_service() {
+	# Clean up any firewall rules we added before restarting.
+	config_load "$CONFIG_NAME"
+	config_foreach cleanup_fw instance
 	stop
 	start
 }
 
+# Remove the firewall rule for a section (called during reload/stop).
+cleanup_fw() {
+	local section="$1"
+	local role open_fw
+	config_get role "$section" role serve
+	[ "$role" = "forward" ] || return 0
+	config_get open_fw "$section" open_firewall 0
+	if [ "$open_fw" != "1" ]; then
+		fw_del_rule "$section"
+	fi
+}
+
 status() {
-	local instance
 	config_load "$CONFIG_NAME"
+	echo "=== tailcat instances ==="
 	config_foreach show_status instance
 }
 
 show_status() {
 	local section="$1"
-	local role enabled
+	local role enabled open_fw
 	config_get role "$section" role serve
 	config_get enabled "$section" enabled 0
-	echo "=== [$section] role=$role enabled=$enabled ==="
-	ubus call service "list" "{ 'name': 'tailcat' }" 2>/dev/null \
-		| grep -o "\"$section\"[^}]*}" || true
+	config_get open_fw "$section" open_firewall 0
+	echo "[$section] role=$role enabled=$enabled open_firewall=$open_fw"
 }
 
 extra_command "status" "Show status of all tailcat instances"

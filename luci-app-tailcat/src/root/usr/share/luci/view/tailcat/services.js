@@ -1,51 +1,31 @@
-'use strict';
-//
-// View: tailcat/services
-//
-// Manages "serve" role instances — local services this router
-// exposes to a remote tailcat client. Three kinds:
-//   ports : expose comma-separated local TCP ports (or "all")
-//   ssh   : auth-free SSH server over tailcat
-//   recv  : file drop box into a local directory
-//
-// Pattern follows luci-app-openvpn's instance grid: add/remove rows,
-// each row is a UCI 'instance' section with role=serve.
-//
+'use strict';'require view';'require form';'require fs';'require uci';
 
-return L.view.extend({
+return view.extend({
 	load: function () {
-		var luci = window.L || L;
-		var uci = luci.require('uci').default;
-		return uci.load('tailcat').then(function () { return uci; });
+		return uci.load('tailcat');
 	},
 
-	render: function (uci) {
-		var luci = window.L || L;
-		var form = luci.require('form').default;
+	render: function () {
+		var m, s, o;
 
-		var m = new form.Map('tailcat',
+		m = new form.Map('tailcat',
 			_('Local Services (serve)'),
-			_('A <em>serve</em> instance exposes something on this router to a remote tailcat client. Tailcat prints a short address (e.g. <code>tcXXXXXX</code>) to the log when it starts listening; give that address to the client.'));
+			_('A <em>serve</em> instance exposes something on this router to a remote tailcat client.'));
 
-		// Filter grid to role=serve only.
-		var s = m.section(form.GridSection, 'instance', _('Serve Instances'));
+		s = m.section(form.GridSection, 'instance', _('Serve Instances'));
 		s.addremove = true;
 		s.addbtntitle = _('Add serve instance');
 		s.sortable = true;
 		s.anonymous = false;
 		s.maxcols = 6;
 		s.nodescriptions = true;
-		// Only show sections whose role is serve (or unset → defaults to serve).
 		s.filter = function (section_id) {
 			var r = uci.get('tailcat', section_id, 'role');
 			return (!r || r === 'serve');
 		};
-		// When adding a new section, default its role to 'serve'.
 		s.addModalOptions = function (modal, section_id) {
 			uci.set('tailcat', section_id, 'role', 'serve');
 		};
-
-		var o;
 
 		o = s.option(form.Value, 'name', _('Name'));
 		o.placeholder = 'my_web';
@@ -65,7 +45,6 @@ return L.view.extend({
 		o.editable = true;
 		o.modalonly = false;
 		o.onchange = function (ev, kind) {
-			// Show/hide port & directory inputs via CSS classes.
 			var root = ev.target.closest('.cbi-section');
 			if (!root) return;
 			root.classList.toggle('tailcat-kind-ports', kind === 'ports');
@@ -93,21 +72,10 @@ return L.view.extend({
 		o.placeholder = '/var/log/tailcat/my_web.log';
 		o.modalonly = true;
 
-		// Custom validation: ports required when kind=ports, dir when recv.
-		m.parse = (function (orig) {
-			return function () {
-				var rv = orig.apply(this, arguments);
-				// per-row validation handled via option.depends above
-				return rv;
-			};
-		})(m.parse);
-
 		return m.render();
 	},
 
 	onApply: function () {
-		var luci = window.L || L;
-		var fs = luci.require('fs').default;
 		return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () { return true; });
-	},
+	}
 });

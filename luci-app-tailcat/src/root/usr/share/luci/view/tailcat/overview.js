@@ -1,53 +1,35 @@
-'use strict';
-//
-// View: tailcat/overview
-//
-// Top-level status page. Shows the global enable toggle, the tailcat
-// binary version, and a summary table of all configured instances
-// (role, enabled, status). Mirrors the "Status" tab pattern from
-// luci-app-wireguard / luci-app-openvpn.
-//
-// All DOM is built declaratively and bound to the luci UI helpers
-// (form.Map, ui.tables, fs/uci ubus calls).
-//
+'use strict';'require view';'require form';'require fs';'require uci';'require rpc';
 
-return L.view.extend({
-	// Pull the config + runtime state once on load.
+var callServiceList = rpc.declare({
+	object: 'service',
+	method: 'list',
+	params: ['name']
+});
+
+var callTailcatVersion = fs.exec('/usr/bin/tailcat', ['--version']).then(function (r) {
+	return (r && r.stdout) ? r.stdout.trim() : 'tailcat not found';
+}).catch(function () { return 'tailcat not found'; });
+
+return view.extend({
 	load: function () {
-		var luci = window.L || L;
-		var uci = luci.require('uci').default;
-		var fs = luci.require('fs').default;
-		var ubus = luci.require('ubus').default;
-
 		return Promise.all([
 			uci.load('tailcat'),
-			ubus.call('service', 'list', { name: 'tailcat' }).catch(function () { return {}; }),
-			fs.exec('/usr/bin/tailcat', ['--version']).then(function (r) {
-				return (r && r.stdout) ? r.stdout.trim() : 'tailcat not found';
-			}).catch(function () { return 'tailcat not found'; }),
-		]).then(function (results) {
-			return {
-				uci: results[0],
-				instances: results[1] || {},
-				binaryVersion: results[2],
-			};
-		});
+			L.resolveDefault(callServiceList('tailcat'), {}),
+			L.resolveDefault(callTailcatVersion, 'n/a')
+		]);
 	},
 
 	render: function (data) {
-		var luci = window.L || L;
-		var form = luci.require('form').default;
-		var uci = luci.require('uci').default;
+		var instances = data[1] && data[1].tailcat ? data[1].tailcat.instances : {};
+		var binaryVersion = data[2];
 
 		var m, s, o;
 
 		m = new form.Map('tailcat',
 			_('Tailcat — Overview'),
-			_('Tailcat is netcat over Tailscale\'s data plane, without the control plane. This page shows the global enable flag and a summary of all configured service instances.'));
+			_('Tailcat is netcat over Tailscale\'s data plane, without the control plane.'));
 
-		// --- Global section ---
-		s = m.section(form.NamedSection, 'general', 'general',
-			_('Global Settings'));
+		s = m.section(form.NamedSection, 'general', 'general', _('Global Settings'));
 		s.addremove = false;
 
 		o = s.option(form.Flag, 'enabled', _('Enable tailcat service'));
@@ -59,15 +41,12 @@ return L.view.extend({
 		o.placeholder = 'https://example.com/derpmap.json';
 		o.editable = true;
 
-		// --- Binary info (read-only) ---
 		o = s.option(form.DummyValue, '_binary', _('tailcat binary'));
-		o.value = data.binaryVersion;
+		o.value = binaryVersion;
 		o.readonly = true;
 
-		// --- Instances summary table ---
-		s = m.section(form.GridSection, 'instance',
-			_('Configured Instances'),
-			_('Each row is one tailcat process. Toggle <em>enabled</em> and apply to (re)start that instance. Use the tabs above to add Local Services or Remote Forwards.'));
+		s = m.section(form.GridSection, 'instance', _('Configured Instances'),
+			_('Each row is one tailcat process. Toggle <em>enabled</em> and apply to (re)start that instance.'));
 		s.addremove = false;
 		s.nodescriptions = true;
 		s.sortable = true;
@@ -87,7 +66,7 @@ return L.view.extend({
 
 		o = s.option(form.DummyValue, '_status', _('Status'));
 		o.textvalue = function (section_id) {
-			var inst = data.instances[section_id];
+			var inst = instances[section_id];
 			if (inst && inst.running) {
 				return '<span style="color:#0a0;font-weight:bold">● running</span>';
 			}
@@ -102,11 +81,7 @@ return L.view.extend({
 		return m.render();
 	},
 
-	// Restart the service after applying config so instances pick up changes.
 	onApply: function () {
-		var luci = window.L || L;
-		var fs = luci.require('fs').default;
-		return fs.exec('/etc/init.d/tailcat', ['restart'])
-			.then(function () { return true; });
-	},
+		return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () { return true; });
+	}
 });
