@@ -46,9 +46,11 @@ jobs:
       - name: Install opkg-utils
         run: |
           set -eux
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq opkg-utils tar gzip
+          # opkg-utils is not in Ubuntu 22.04 apt; install from source.
+          git clone --depth 1 https://git.yoctoproject.org/opkg-utils /tmp/opkg-utils
+          sudo make -C /tmp/opkg-utils install prefix=/usr
           which ipkg-build
+          ipkg-build --version 2>/dev/null || true
 
       - name: Download tailcat binary
         run: |
@@ -140,8 +142,9 @@ jobs:
       - name: Install opkg-utils
         run: |
           set -eux
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq opkg-utils
+          # opkg-utils is not in Ubuntu 22.04 apt; install from source.
+          git clone --depth 1 https://git.yoctoproject.org/opkg-utils /tmp/opkg-utils
+          sudo make -C /tmp/opkg-utils install prefix=/usr
           which ipkg-build
 
       - name: Assemble package tree
