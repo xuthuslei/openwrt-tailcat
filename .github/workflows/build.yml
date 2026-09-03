@@ -125,10 +125,24 @@ jobs:
         run: |
           set -eux
           mkdir -p out
-          # -a tar.gz: OpenWrt opkg expects gzip tarballs, not ar archives.
-          # -Z xz would also work on modern opkg; tar.gz is safest.
-          opkg-build -a tar.gz -o "$(id -un)" -g "$(id -gn)" pkg-root
-          mv pkg-root/*.ipk out/ 2>/dev/null || mv *.ipk out/ 2>/dev/null || true
+          # Hand-build an OpenWrt-compatible ipk (gzip-tar, not ar).
+          # Layout: debian-binary + control.tar.gz + data.tar.gz,
+          # outer container is gzip-compressed tar.
+          PKG="pkg-root"
+
+          # 1. debian-binary (version line)
+          printf '2.0\n' > debian-binary
+
+          # 2. control.tar.gz from CONTROL/
+          ( cd "$PKG/CONTROL" && tar czf ../../../control.tar.gz . )
+
+          # 3. data.tar.gz from package tree (excluding CONTROL/)
+          ( cd "$PKG" && tar czf ../../data.tar.gz \
+              --exclude='./CONTROL' --exclude='./CONTROL/*' . )
+
+          # 4. assemble ipk: gzip-compressed tar of the 3 files
+          IPK="out/tailcat_${TAILCAT_VERSION}-1_${{ matrix.opkg_arch }}.ipk"
+          tar czf "$IPK" ./debian-binary ./control.tar.gz ./data.tar.gz
           ls -la out/
 
       - name: Upload artifacts
@@ -216,9 +230,14 @@ jobs:
         run: |
           set -eux
           mkdir -p out
-          # -a tar.gz: OpenWrt opkg expects gzip tarballs, not ar archives.
-          opkg-build -a tar.gz -o "$(id -un)" -g "$(id -gn)" pkg-root
-          mv pkg-root/*.ipk out/ 2>/dev/null || mv *.ipk out/ 2>/dev/null || true
+          # Hand-build an OpenWrt-compatible ipk (gzip-tar, not ar).
+          PKG="pkg-root"
+          printf '2.0\n' > debian-binary
+          ( cd "$PKG/CONTROL" && tar czf ../../../control.tar.gz . )
+          ( cd "$PKG" && tar czf ../../data.tar.gz \
+              --exclude='./CONTROL' --exclude='./CONTROL/*' . )
+          IPK="out/luci-app-tailcat_0.1.0-1_all.ipk"
+          tar czf "$IPK" ./debian-binary ./control.tar.gz ./data.tar.gz
           ls -la out/
 
       - name: Upload artifacts
