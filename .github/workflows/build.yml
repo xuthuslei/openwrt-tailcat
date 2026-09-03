@@ -63,18 +63,15 @@ jobs:
               set -eux
               cd /builder
 
-              # Unpack the SDK for this target.
-              ./setup.sh
+              # The SDK is already unpacked at /builder (Makefile,
+              # package/, scripts/, staging_dir/ all present).
+              # Run setup.sh in case it needs to fix up symlinks.
+              ./setup.sh || true
 
-              # Find the unpacked SDK directory.
-              SDK_DIR=$(find /builder -maxdepth 1 -type d -name "openwrt-sdk-*" | head -1)
-              if [ -z "$SDK_DIR" ]; then
-                echo "ERROR: could not find unpacked SDK dir under /builder"
-                ls -la /builder
-                exit 1
-              fi
-              echo "SDK dir: $SDK_DIR"
-              cd "$SDK_DIR"
+              # Sanity-check we are in an SDK tree.
+              test -f Makefile
+              test -d package
+              test -d scripts
 
               # Symlink our packages into the tree.
               ln -sf /pkg/tailcat package/tailcat
@@ -113,8 +110,7 @@ jobs:
             openwrt/sdk:${{ matrix.tag }} \
             /bin/bash -c '
               set -eux
-              SDK_DIR=$(find /builder -maxdepth 1 -type d -name "openwrt-sdk-*" | head -1)
-              cd "$SDK_DIR"
+              cd /builder
               find bin -name "tailcat*.ipk" -exec cp {} /out/ \;
               find bin -name "luci-app-tailcat*.ipk" -exec cp {} /out/ \;
             '
