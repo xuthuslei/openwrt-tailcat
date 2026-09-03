@@ -1,90 +1,91 @@
 # openwrt-tailcat
 
-> 主仓库（GitHub，Actions 产物以此为准）：https://github.com/xuthuslei/openwrt-tailcat
-> 镜像仓库（AtomGit）：https://atomgit.com/lkjx/openwrt-tailcat
+> [English](README.md) | [中文](readme_zh.md)
 
-OpenWrt 下的 tailcat 服务插件，提供 LuCI Web 界面来管理基于 [tailscale/tailcat](https://github.com/tailscale/tailcat) 的点对点加密隧道服务。
+> Primary repo (GitHub, Actions artifacts are canonical): https://github.com/xuthuslei/openwrt-tailcat
+> Mirror repo (AtomGit): https://atomgit.com/lkjx/openwrt-tailcat
 
-Tailcat 是 Tailscale 数据平面的再混音：像 `netcat` 一样工作，但流量通过 WireGuard® 加密的点对点隧道传输，使用 DERP 作为 NAT 穿透的辅助通道和最终的中继后备。**无需 Tailscale 账号、无需 root、纯用户态。**
+An OpenWrt service plugin for [tailscale/tailcat](https://github.com/tailscale/tailcat), providing a LuCI web interface to manage point-to-point encrypted tunnels.
 
-## 功能
+Tailcat is a re-mix of Tailscale's data plane: it works like `netcat` but traffic flows over WireGuard® encrypted point-to-point tunnels, using DERP as the NAT-hole-punching side channel and ultimate relay fallback. **No Tailscale account, no root, userspace only.**
 
-本插件在 OpenWrt 路由器上提供两种 tailcat 实例类型，均可通过 LuCI 界面增删改查：
+## Features
 
-| 角色 | 说明 | 典型用途 |
-|------|------|----------|
-| **serve**（本机服务） | 在本机暴露端口 / SSH / 文件接收箱，生成一个 tailcat 短地址供远端连接 | 把路由器上的 Web 服务、SSH、配置备份目录暴露给远端 |
-| **forward**（远程转发） | 连接到远端 tailcat 地址，在本机绑定一个或多个本地端口转发到远端服务 | 让路由器把远端 tailcat 服务器的端口以本地端口形式提供给 LAN 客户端 |
+The plugin provides two tailcat instance types on an OpenWrt router, both CRUD-manageable via LuCI:
 
-界面参考 OpenWrt 已有的 VPN 服务（`luci-app-openvpn`、`luci-app-wireguard`）的模式：
-- **概览页**：全局开关、tailcat 版本、所有实例状态汇总
-- **本机服务页**：管理 `serve` 实例（端口暴露 / 无认证 SSH / 文件接收箱）
-- **远程转发页**：管理 `forward` 实例（远端地址 + 本地端口转发）
-- **状态页**：显示每个 serve 实例当前的 tailcat 地址（从日志解析）、运行状态
-- **日志页**：按实例选择日志文件并实时刷新
+| Role | Description | Typical use |
+|------|-------------|-------------|
+| **serve** (local service) | Expose local ports / SSH / file drop box on this router, generating a short tailcat address for a remote client to connect | Expose the router's web service, SSH, or config backup dir to a remote |
+| **forward** (remote forward) | Connect to a remote tailcat address and bind one or more local ports that forward into the remote service | Let the router present a remote tailcat server's ports as ordinary local ports to LAN clients |
 
-## 目录结构
+The UI follows the pattern of existing OpenWrt VPN services (`luci-app-openvpn`, `luci-app-wireguard`):
+- **Overview page**: global toggle, tailcat version, summary of all instances
+- **Local Services page**: manage `serve` instances (port expose / auth-free SSH / file drop box)
+- **Remote Forwards page**: manage `forward` instances (remote address + local port forwards)
+- **Status page**: show each instance's running state and the serve instance's current tailcat address (parsed from log)
+- **Log page**: pick an instance's log file and stream with auto-refresh
+
+## Directory structure
 
 ```
 openwrt-tailcat/
-├── .github/workflows/build.yml      # GitHub Actions：下载预编译二进制 + opkg-build 打包
+├── .github/workflows/build.yml      # GitHub Actions: download prebuilt binary + opkg-build
 │
-├── tailcat/                         # 主程序包
+├── tailcat/                         # Main package
 │   ├── Makefile                     # OpenWrt package Makefile
 │   └── files/
-│       ├── etc/config/tailcat       # UCI 配置模板
-│       ├── etc/init.d/tailcat       # procd init 脚本，按 UCI 实例启动进程
+│       ├── etc/config/tailcat       # UCI config template
+│       ├── etc/init.d/tailcat       # procd init script, starts one process per UCI instance
 │       └── usr/lib/tailcat/
-│           └── tailcat-instance.sh  # 实例命令行构造脚本（被 init 调用）
+│           └── tailcat-instance.sh  # Per-instance command-line builder (called by init)
 │
-└── luci-app-tailcat/                # LuCI 界面包
+└── luci-app-tailcat/                # LuCI interface package
     ├── Makefile
     ├── po/
-    │   ├── en/tailcat.po            # 英文翻译
-    │   └── zh-cn/tailcat.po         # 简体中文翻译
+    │   ├── en/tailcat.po            # English translation
+    │   └── zh-cn/tailcat.po         # Simplified Chinese translation
     └── src/
         ├── root/usr/share/luci/
-        │   ├── controller/tailcat.js        # controller（页面路由）
         │   └── view/tailcat/
-        │       ├── overview.js              # 概览页
-        │       ├── services.js              # 本机服务（serve）配置
-        │       ├── forwards.js              # 远程转发（forward）配置
-        │       ├── status.js                # 运行状态页
-        │       └── log.js                   # 日志查看页
-        ├── usr/share/luci/menu.d/luci-app-tailcat.json   # 菜单注册
+        │       ├── overview.js      # Overview page
+        │       ├── services.js      # Local Services (serve) config
+        │       ├── forwards.js      # Remote Forwards (forward) config
+        │       ├── status.js        # Runtime status page
+        │       └── log.js           # Log viewer page
+        ├── usr/share/luci/menu.d/luci-app-tailcat.json   # Menu registration
         └── usr/share/rpcd/acl.d/luci-app-tailcat.json    # rpcd ACL
 ```
 
-## 安装
+## Installation
 
-### 方式一：直接下载预编译 ipk（推荐）
+### Option 1: Download prebuilt ipk (recommended)
 
-每次推送到 `main` 分支，GitHub Actions 会自动构建多架构 ipk 并附到
-[Snapshot Release](https://github.com/xuthuslei/openwrt-tailcat/releases/latest)
-上。根据你的路由器架构下载对应文件：
+Every push to `main` triggers GitHub Actions to build multi-arch ipks and attach them to a
+[Snapshot Release](https://github.com/xuthuslei/openwrt-tailcat/releases/latest).
+Download the file matching your router architecture:
 
-| 架构（opkg arch） | ipk 文件 | 典型设备 |
-|-------------------|----------|----------|
-| `x86_64` | `tailcat_0.5.0-1_x86_64.ipk` | x86 软路由 |
-| `aarch64_cortexa53` | `tailcat_0.5.0-1_aarch64_cortexa53.ipk` | 树莓派 3、部分 ARM 路由 |
-| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.5.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx、IPQ40xx 等 |
-| `all` | `luci-app-tailcat_0.1.0-1_all.ipk` | LuCI 界面，所有架构通用 |
+| Architecture (opkg arch) | ipk file | Typical device |
+|--------------------------|----------|----------------|
+| `x86_64` | `tailcat_0.5.0-1_x86_64.ipk` | x86 software router |
+| `aarch64_cortexa53` | `tailcat_0.5.0-1_aarch64_cortexa53.ipk` | Raspberry Pi 3, some ARM routers |
+| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.5.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx, IPQ40xx, etc. |
+| `all` | `luci-app-tailcat_0.1.0-1_all.ipk` | LuCI interface, universal for all archs |
 
-安装：
+Install:
 
 ```sh
-# 把对应架构的 tailcat 和 luci-app-tailcat 上传到路由器
+# Upload the matching-arch tailcat and luci-app-tailcat to the router
 opkg install tailcat_*.ipk luci-app-tailcat_*.ipk
 /etc/init.d/rpcd restart
-# 路由器后台 LuCI 中即可看到 服务 → Tailcat
+# In the router's LuCI backend you'll now see Services → Tailcat
 ```
 
-> 架构名查询：在路由器上执行 `opkg print-architecture`，或在
-> [OpenWrt Table of Hardware](https://openwrt.org/toh/start) 查对应 `Target`/`Subtarget`。
+> To look up the architecture name: run `opkg print-architecture` on the router, or check the matching `Target`/`Subtarget` in the
+> [OpenWrt Table of Hardware](https://openwrt.org/toh/start).
 
-### 方式二：从源码自行编译
+### Option 2: Compile from source
 
-需要完整 OpenWrt 源码树 + Go 工具链：
+Requires a full OpenWrt source tree + Go toolchain:
 
 ```sh
 cd <openwrt-source>
@@ -93,66 +94,67 @@ ln -s /tmp/openwrt-tailcat/tailcat           package/tailcat
 ln -s /tmp/openwrt-tailcat/luci-app-tailcat  package/luci-app-tailcat
 
 make menuconfig
-#   Network -> VPN -> tailcat           (选中)
-#   LuCI    -> Applications -> luci-app-tailcat (选中)
+#   Network -> VPN -> tailcat           (select)
+#   LuCI    -> Applications -> luci-app-tailcat (select)
 
 make package/tailcat/compile V=s
 make package/luci-app-tailcat/compile V=s
 ```
 
-> `tailcat` 包依赖 Go 工具链从源码编译 `github.com/tailscale/tailcat/cmd/tailcat`。
-> 若编译环境受限，建议直接用方式一的预编译 ipk。
+> The `tailcat` package depends on the Go toolchain to compile `github.com/tailscale/tailcat/cmd/tailcat` from source.
+> If your build environment is constrained, prefer Option 1's prebuilt ipks.
 
-## 使用
+## Usage
 
-安装完成后，在 LuCI 中进入 **服务（Services）→ Tailcat**。
+After installation, navigate to **Services → Tailcat** in LuCI.
 
-### 1. 启用服务
+### 1. Enable the service
 
-在 **概览** 页，将 **Enable tailcat service** 打开并保存。
+On the **Overview** page, turn on **Enable tailcat service** and save.
 
-### 2. 创建本机服务（serve）
+### 2. Create a local service (serve)
 
-在 **本机服务** 页点击 **Add serve instance**：
+On the **Local Services** page click **Add serve instance**:
 
-| 字段 | 说明 |
-|------|------|
-| Name | 实例名，如 `my_web` |
+| Field | Description |
+|-------|-------------|
+| Name | Instance name, e.g. `my_web` |
 | Kind | `Expose local ports` / `Auth-free SSH server` / `File drop box (recv)` |
-| Ports | 当 Kind 为端口暴露时填，如 `8080,8443` 或 `all` |
-| Receive directory | 当 Kind 为 recv 时填，如 `/root/tailcat-inbox` |
-| Log file | 日志输出路径，tailcat 启动后会在此打印短地址 |
+| Ports | Required when Kind is port-expose, e.g. `8080,8443` or `all` |
+| Receive directory | Required when Kind is recv, e.g. `/root/tailcat-inbox` |
+| Log file | Log output path; tailcat prints the short address here on startup |
 
-保存应用后，在 **状态** 页或日志中找到形如 `tcXXXXXXXXXXXXXXXXXX` 的地址，把它交给远端客户端。
+After save & apply, find the address (e.g. `tcXXXXXXXXXXXXXXXXXX`) on the **Status** page or in the log, then hand it to the remote client.
 
-### 3. 接入远程服务（forward）
+### 3. Connect to a remote service (forward)
 
-在 **远程转发** 页点击 **Add forward instance**：
+On the **Remote Forwards** page click **Add forward instance**:
 
-| 字段 | 说明 |
-|------|------|
-| Name | 实例名，如 `remote_web` |
-| Remote tailcat address | 远端 serve 实例生成的地址，如 `tcXXXXX` |
-| Local bind address | 本地监听地址，默认 `127.0.0.1`；要让 LAN 内其他设备访问可填 `0.0.0.0` |
-| Port forwards | 空格分隔的 `本地端口:远端端口` 对，如 `18080:8080 13306:3306`；只写一个端口等价于 `端口:端口` |
+| Field | Description |
+|-------|-------------|
+| Name | Instance name, e.g. `remote_web` |
+| Remote tailcat address | Address generated by the remote serve instance, e.g. `tcXXXXX` |
+| Local bind address | Local listen address, defaults to `0.0.0.0` (LAN reachable) |
+| Port forwards | Space-separated `local:remote` pairs, e.g. `18080:8080 13306:3306`; a bare port equals `port:port` |
+| Open WAN firewall ports | When enabled, open the WAN-side firewall for the local forward ports so external (Internet) hosts can reach them. LAN access is always available. Default is off to avoid exposing ports to the Internet. |
 
-保存应用后，本机对应端口即可当作远端服务的本地端口使用。
+After save & apply, the corresponding local port acts as if it were the remote service.
 
-### 4. 查看状态与日志
+### 4. View status & logs
 
-- **状态** 页显示每个实例的运行状态与 serve 实例当前的 tailcat 地址。
-- **日志** 页可按实例选择日志文件，支持自动刷新（3 秒）。
+- **Status** page shows each instance's running state and the serve instance's current tailcat address.
+- **Log** page lets you pick an instance's log file with auto-refresh (3s).
 
-## UCI 配置示例
+## UCI config example
 
-`/etc/config/tailcat`：
+`/etc/config/tailcat`:
 
 ```sh
 config general 'general'
     option enabled 1
     # option derp_map 'https://example.com/derpmap.json'
 
-# 本机服务：暴露 8080 和 8443
+# Local service: expose 8080 and 8443
 config instance 'my_web'
     option enabled 1
     option role 'serve'
@@ -160,37 +162,38 @@ config instance 'my_web'
     option serve_ports '8080,8443'
     option log_file '/var/log/tailcat/my_web.log'
 
-# 远程转发：把远端 8080/3306 转发到本机 18080/13306
+# Remote forward: forward remote 8080/3306 to local 18080/13306
 config instance 'remote_web'
     option enabled 1
     option role 'forward'
     option remote_addr 'tcXXXXXXXXXXXXXXXXXX'
-    option bind_addr '127.0.0.1'
+    option bind_addr '0.0.0.0'
     option forwards '18080:8080 13306:3306'
+    option open_firewall 0
     option log_file '/var/log/tailcat/remote_web.log'
 ```
 
-常用命令：
+Common commands:
 
 ```sh
-/etc/init.d/tailcat enable      # 开机自启
-/etc/init.d/tailcat start       # 启动所有已启用实例
-/etc/init.d/tailcat restart     # 重启
-/etc/init.d/tailcat status      # 查看状态
+/etc/init.d/tailcat enable      # Enable at boot
+/etc/init.d/tailcat start       # Start all enabled instances
+/etc/init.d/tailcat restart     # Restart
+/etc/init.d/tailcat status      # Show status
 ```
 
-## 持续集成
+## Continuous integration
 
-[`.github/workflows/build.yml`](.github/workflows/build.yml) 在每次 push 到 `main` 时触发：
+[`.github/workflows/build.yml`](.github/workflows/build.yml) triggers on every push to `main`:
 
-1. 从 [tailscale/tailcat Releases](https://github.com/tailscale/tailcat/releases) 下载预编译二进制
-   （linux amd64 / arm64 / armv7）
-2. 用 [`opkg-utils`](https://git.yoctoproject.org/opkg-utils) 的 `opkg-build`
-   把二进制 + init 脚本 + UCI 配置打包成 OpenWrt ipk
-3. `luci-app-tailcat` 是纯 JS + 配置，同样用 `opkg-build` 打包（`Architecture: all`）
-4. 所有 ipk 上传为 workflow artifact，并附到一个 snapshot release
+1. Download prebuilt tailcat binaries from [tailscale/tailcat Releases](https://github.com/tailscale/tailcat/releases)
+   (linux amd64 / arm64 / armv7)
+2. Use [`opkg-utils`](https://git.yoctoproject.org/opkg-utils) `opkg-build` to pack
+   binary + init script + UCI config into an OpenWrt ipk
+3. `luci-app-tailcat` is pure JS + config, packed the same way (`Architecture: all`)
+4. All ipks are uploaded as workflow artifacts and attached to a snapshot release
 
-架构映射：
+Architecture mapping:
 
 | Go arch | opkg arch |
 |---------|-----------|
@@ -198,22 +201,22 @@ config instance 'remote_web'
 | `arm64` | `aarch64_cortexa53` |
 | `armv7` | `arm_cortex-a7_neon-vfpv4` |
 
-构建状态与产物：
-- Actions 运行记录：https://github.com/xuthuslei/openwrt-tailcat/actions
-- 最新 snapshot release：https://github.com/xuthuslei/openwrt-tailcat/releases/latest
+Build status & artifacts:
+- Actions run log: https://github.com/xuthuslei/openwrt-tailcat/actions
+- Latest snapshot release: https://github.com/xuthuslei/openwrt-tailcat/releases/latest
 
-## 与已有 VPN 服务的对比
+## Comparison with existing VPN services
 
-| 特性 | tailcat（本插件） | wireguard / openvpn |
-|------|-------------------|---------------------|
-| 控制平面 | 无，地址带外交换 | 需手动配置或使用协调服务器 |
-| 加密 | WireGuard 点对点 | WireGuard / OpenSSL |
-| NAT 穿透 | DERP 辅助 + magicsock | 有限 / 依赖配置 |
-| 账号 | 不需要 | 不需要 |
-| 典型场景 | 临时点对点连接、端口转发、文件传输 | 站点到站点 / 长期 VPN |
+| Feature | tailcat (this plugin) | wireguard / openvpn |
+|---------|-----------------------|---------------------|
+| Control plane | None, address exchanged out-of-band | Needs manual config or coordination server |
+| Encryption | WireGuard point-to-point | WireGuard / OpenSSL |
+| NAT traversal | DERP-assisted + magicsock | Limited / config-dependent |
+| Account | Not required | Not required |
+| Typical scenario | Ad-hoc point-to-point, port forward, file transfer | Site-to-site / long-term VPN |
 
-本插件刻意复用了 OpenWrt 已有 VPN 服务的 LuCI 布局与 UCI 配置惯例，让熟悉 `luci-app-wireguard` 的用户可以零成本上手。
+This plugin deliberately reuses the LuCI layout and UCI config conventions of existing OpenWrt VPN services, so users familiar with `luci-app-wireguard` can get started at zero cost.
 
-## 许可证
+## License
 
-MIT，详见 [LICENSE](LICENSE)。
+MIT, see [LICENSE](LICENSE).
