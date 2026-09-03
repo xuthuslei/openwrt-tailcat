@@ -1,7 +1,7 @@
 #
 # Copyright (C) 2026 OpenWrt-Tailcat Contributors
 #
-# This is free software, licensed under the BSD-3-Clause License.
+# This is free software, licensed under the MIT License.
 #
 
 include $(TOPDIR)/rules.mk
@@ -15,7 +15,7 @@ PKG_SOURCE_URL:=https://github.com/tailscale/tailcat.git
 PKG_SOURCE_VERSION:=main
 PKG_MIRROR_HASH:=skip
 
-PKG_LICENSE:=BSD-3-Clause
+PKG_LICENSE:=MIT
 PKG_LICENSE_FILES:=LICENSE
 PKG_MAINTAINER:=OpenWrt-Tailcat Contributors
 

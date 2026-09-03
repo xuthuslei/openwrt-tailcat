@@ -216,4 +216,4 @@ config instance 'remote_web'
 
 ## 许可证
 
-BSD-3-Clause，与上游 [tailscale/tailcat](https://github.com/tailscale/tailcat) 保持一致。
+MIT，详见 [LICENSE](LICENSE)。

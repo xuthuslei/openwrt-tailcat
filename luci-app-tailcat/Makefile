@@ -1,7 +1,7 @@
 #
 # Copyright (C) 2026 OpenWrt-Tailcat Contributors
 #
-# This is free software, licensed under the BSD-3-Clause License.
+# This is free software, licensed under the MIT License.
 #
 
 include $(TOPDIR)/rules.mk
@@ -10,7 +10,7 @@ PKG_NAME:=luci-app-tailcat
 PKG_VERSION:=0.1.0
 PKG_RELEASE:=1
 
-PKG_LICENSE:=BSD-3-Clause
+PKG_LICENSE:=MIT
 PKG_MAINTAINER:=OpenWrt-Tailcat Contributors
 
 LUCI_TITLE:=Tailcat - netcat over Tailscale's data plane (LuCI)
