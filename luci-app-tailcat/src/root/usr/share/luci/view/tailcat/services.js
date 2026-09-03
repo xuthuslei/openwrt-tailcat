@@ -29,7 +29,7 @@ return view.extend({
 
 		o = s.option(form.Value, 'name', _('Name'));
 		o.placeholder = 'my_web';
-		o.modalonly = true;
+		o.modalonly = false;
 
 		o = s.option(form.Flag, 'enabled', _('Enabled'));
 		o.rmempty = false;
