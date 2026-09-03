@@ -1,0 +1,131 @@
+#
+# Multi-arch build of tailcat + luci-app-tailcat ipk.
+#
+# We run inside the official OpenWrt SDK container, symlink our two
+# packages into the tree at the paths their Makefiles expect
+# (tailcat -> package/tailcat, luci-app-tailcat -> feeds/luci/applications),
+# update feeds, then build for each target arch.
+#
+
+name: Build ipk
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  OPENWRT_SDK_TAG: v23.05.5
+  # Arch list: target architecture triples matching SDK names.
+  ARCHES: >-
+    x86_64
+    aarch64_cortexa53
+
+jobs:
+  build:
+    name: Build for ${{ matrix.arch }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64_cortexa53]
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/.ghcup /usr/lib/firefox /usr/lib/jvm \
+                      /usr/lib/rustlib 2>/dev/null || true
+          sudo apt-get clean
+          df -h /
+
+      - name: Pull OpenWrt SDK
+        run: |
+          docker pull openwrt/sdk:${{ env.OPENWRT_SDK_TAG }}-${{ matrix.arch }}
+          df -h /
+
+      - name: Prepare SDK workspace
+        run: |
+          mkdir -p sdk-build
+          # Symlink our packages into the SDK tree paths expected
+          # by their Makefile include lines.
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            openwrt/sdk:${{ env.OPENWRT_SDK_TAG }}-${{ matrix.arch }} \
+            /bin/sh -c '
+              set -eux;
+              cd /home/build/openwrt;
+              # tailcat package -> package/tailcat (uses ../../lang/golang)
+              ln -sf /workspace/tailcat package/tailcat;
+              # luci-app-tailcat -> feeds/luci/applications/luci-app-tailcat
+              mkdir -p feeds/luci/applications;
+              ln -sf /workspace/luci-app-tailcat feeds/luci/applications/luci-app-tailcat;
+              # Refresh feeds so luci.mk is available.
+              ./scripts/feeds update -a || true;
+              ./scripts/feeds install luci || true;
+              ./scripts/feeds install -a || true;
+              # Make defconfig pick up our packages by updating feeds index.
+              echo "CONFIG_PACKAGE_tailcat=y" >> .config;
+              echo "CONFIG_PACKAGE_luci-app-tailcat=y" >> .config;
+              make defconfig;
+              # Build both packages.
+              make -j$(nproc) package/tailcat/compile V=s || \
+                make -j1 package/tailcat/compile V=s;
+              make -j$(nproc) package/luci-app-tailcat/compile V=s || \
+                make -j1 package/luci-app-tailcat/compile V=s;
+            '
+
+      - name: Collect built ipk
+        run: |
+          mkdir -p artifacts
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            openwrt/sdk:${{ env.OPENWRT_SDK_TAG }}-${{ matrix.arch }} \
+            /bin/sh -c '
+              set -eux;
+              cd /home/build/openwrt;
+              find bin/packages -name "tailcat*.ipk" -exec cp {} /workspace/artifacts/ \; ;
+              find bin/packages -name "luci-app-tailcat*.ipk" -exec cp {} /workspace/artifacts/ \; ;
+            '
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipk-${{ matrix.arch }}
+          path: artifacts/*.ipk
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Attach ipk to release
+    needs: build
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+          merge-multiple: true
+
+      - name: Show collected ipk
+        run: ls -la all-artifacts/
+
+      - name: Create snapshot release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: snapshot-${{ github.sha }}
+          name: Snapshot build ${{ github.sha }}
+          body: |
+            Automated build from commit ${{ github.sha }}.
+            Built against OpenWrt SDK ${{ env.OPENWRT_SDK_TAG }}.
+          files: all-artifacts/*.ipk
+          prerelease: true
