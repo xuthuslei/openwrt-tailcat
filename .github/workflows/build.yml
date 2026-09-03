@@ -122,7 +122,9 @@ jobs:
         run: |
           set -eux
           mkdir -p out
-          opkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root out
+          # opkg-build writes the .ipk next to the package dir.
+          opkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root
+          mv pkg-root/*.ipk out/ 2>/dev/null || mv *.ipk out/ 2>/dev/null || true
           ls -la out/
 
       - name: Upload artifacts
@@ -210,7 +212,9 @@ jobs:
         run: |
           set -eux
           mkdir -p out
-          opkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root out
+          # opkg-build writes the .ipk next to the package dir.
+          opkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root
+          mv pkg-root/*.ipk out/ 2>/dev/null || mv *.ipk out/ 2>/dev/null || true
           ls -la out/
 
       - name: Upload artifacts
