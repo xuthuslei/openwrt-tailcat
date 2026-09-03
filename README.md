@@ -1,5 +1,8 @@
 # openwrt-tailcat
 
+> 主仓库（GitHub，Actions 产物以此为准）：https://github.com/xuthuslei/openwrt-tailcat
+> 镜像仓库（AtomGit）：https://atomgit.com/lkjx/openwrt-tailcat
+
 OpenWrt 下的 tailcat 服务插件，提供 LuCI Web 界面来管理基于 [tailscale/tailcat](https://github.com/tailscale/tailcat) 的点对点加密隧道服务。
 
 Tailcat 是 Tailscale 数据平面的再混音：像 `netcat` 一样工作，但流量通过 WireGuard® 加密的点对点隧道传输，使用 DERP 作为 NAT 穿透的辅助通道和最终的中继后备。**无需 Tailscale 账号、无需 root、纯用户态。**
@@ -24,68 +27,81 @@ Tailcat 是 Tailscale 数据平面的再混音：像 `netcat` 一样工作，但
 
 ```
 openwrt-tailcat/
-├── tailcat/                          # 主程序包
-│   ├── Makefile                      # OpenWrt package Makefile（从源码编译 tailcat）
-│   └── files/
-│       ├── etc/config/tailcat        # UCI 配置模板
-│       ├── etc/init.d/tailcat        # procd init 脚本，按 UCI 实例启动进程
-│       └── usr/lib/tailcat/
-│           └── tailcat-instance.sh   # 实例命令行构造脚本（被 init 调用）
+├── .github/workflows/build.yml      # GitHub Actions：下载预编译二进制 + opkg-build 打包
 │
-└── luci-app-tailcat/                 # LuCI 界面包
+├── tailcat/                         # 主程序包
+│   ├── Makefile                     # OpenWrt package Makefile
+│   └── files/
+│       ├── etc/config/tailcat       # UCI 配置模板
+│       ├── etc/init.d/tailcat       # procd init 脚本，按 UCI 实例启动进程
+│       └── usr/lib/tailcat/
+│           └── tailcat-instance.sh  # 实例命令行构造脚本（被 init 调用）
+│
+└── luci-app-tailcat/                # LuCI 界面包
     ├── Makefile
     ├── po/
-    │   ├── en/tailcat.po             # 英文翻译
-    │   └── zh-cn/tailcat.po          # 简体中文翻译
+    │   ├── en/tailcat.po            # 英文翻译
+    │   └── zh-cn/tailcat.po         # 简体中文翻译
     └── src/
         ├── root/usr/share/luci/
-        │   ├── menu.d/luci-app-tailcat.json     # 菜单注册
-        │   └── controller/tailcat.js            # controller（页面路由）
-        ├── usr/share/luci/view/tailcat/
-        │   ├── overview.js           # 概览页
-        │   ├── services.js           # 本机服务（serve）配置
-        │   ├── forwards.js           # 远程转发（forward）配置
-        │   ├── status.js             # 运行状态页
-        │   └── log.js                # 日志查看页
-        └── usr/share/rpcd/acl.d/luci-app-tailcat.json   # rpcd ACL
+        │   ├── controller/tailcat.js        # controller（页面路由）
+        │   └── view/tailcat/
+        │       ├── overview.js              # 概览页
+        │       ├── services.js              # 本机服务（serve）配置
+        │       ├── forwards.js              # 远程转发（forward）配置
+        │       ├── status.js                # 运行状态页
+        │       └── log.js                   # 日志查看页
+        ├── usr/share/luci/menu.d/luci-app-tailcat.json   # 菜单注册
+        └── usr/share/rpcd/acl.d/luci-app-tailcat.json    # rpcd ACL
 ```
 
 ## 安装
 
-### 方式一：集成进 OpenWrt 源码树编译（推荐）
+### 方式一：直接下载预编译 ipk（推荐）
 
-1. 将两个包目录放入 OpenWrt 源码树的 `package/` 下：
-   ```sh
-   cd <openwrt-source>
-   git clone https://github.com/<you>/openwrt-tailcat.git package/openwrt-tailcat
-   # 建立软链接到标准位置
-   ln -s ../openwrt-tailcat/tailcat           package/net/tailcat
-   ln -s ../openwrt-tailcat/luci-app-tailcat  package/luci-app-tailcat
-   ```
+每次推送到 `main` 分支，GitHub Actions 会自动构建多架构 ipk 并附到
+[Snapshot Release](https://github.com/xuthuslei/openwrt-tailcat/releases/latest)
+上。根据你的路由器架构下载对应文件：
 
-2. 配置并编译：
-   ```sh
-   make menuconfig
-   #   Network  -> VPN -> tailcat           (选中)
-   #   LuCI     -> Applications -> luci-app-tailcat  (选中)
-   make package/tailcat/compile V=s
-   make package/luci-app-tailcat/compile V=s
-   ```
-   > `tailcat` 包依赖 Go 工具链从源码编译 `github.com/tailscale/tailcat/cmd/tailcat`。
+| 架构（opkg arch） | ipk 文件 | 典型设备 |
+|-------------------|----------|----------|
+| `x86_64` | `tailcat_0.5.0-1_x86_64.ipk` | x86 软路由 |
+| `aarch64_cortexa53` | `tailcat_0.5.0-1_aarch64_cortexa53.ipk` | 树莓派 3、部分 ARM 路由 |
+| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.5.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx、IPQ40xx 等 |
+| `all` | `luci-app-tailcat_0.1.0-1_all.ipk` | LuCI 界面，所有架构通用 |
 
-3. 把生成的 `*.ipk` 上传到路由器并安装：
-   ```sh
-   opkg install tailcat_*.ipk luci-app-tailcat_*.ipk
-   /etc/init.d/rpcd restart
-   ```
+安装：
 
-### 方式二：使用预编译 tailcat 二进制
+```sh
+# 把对应架构的 tailcat 和 luci-app-tailcat 上传到路由器
+opkg install tailcat_*.ipk luci-app-tailcat_*.ipk
+/etc/init.d/rpcd restart
+# 路由器后台 LuCI 中即可看到 服务 → Tailcat
+```
 
-如果你已通过 [tailcat Releases](https://github.com/tailscale/tailcat/releases) 拿到对应架构的静态二进制，可以：
+> 架构名查询：在路由器上执行 `opkg print-architecture`，或在
+> [OpenWrt Table of Hardware](https://openwrt.org/toh/start) 查对应 `Target`/`Subtarget`。
 
-1. 把二进制放到 `tailcat/files/usr/bin/tailcat` 并赋予可执行权限。
-2. 在 `tailcat/Makefile` 中保留 `files/` 安装逻辑，跳过 Go 编译。
-3. 其余步骤同方式一。
+### 方式二：从源码自行编译
+
+需要完整 OpenWrt 源码树 + Go 工具链：
+
+```sh
+cd <openwrt-source>
+git clone https://github.com/xuthuslei/openwrt-tailcat.git /tmp/openwrt-tailcat
+ln -s /tmp/openwrt-tailcat/tailcat           package/tailcat
+ln -s /tmp/openwrt-tailcat/luci-app-tailcat  package/luci-app-tailcat
+
+make menuconfig
+#   Network -> VPN -> tailcat           (选中)
+#   LuCI    -> Applications -> luci-app-tailcat (选中)
+
+make package/tailcat/compile V=s
+make package/luci-app-tailcat/compile V=s
+```
+
+> `tailcat` 包依赖 Go 工具链从源码编译 `github.com/tailscale/tailcat/cmd/tailcat`。
+> 若编译环境受限，建议直接用方式一的预编译 ipk。
 
 ## 使用
 
@@ -162,6 +178,29 @@ config instance 'remote_web'
 /etc/init.d/tailcat restart     # 重启
 /etc/init.d/tailcat status      # 查看状态
 ```
+
+## 持续集成
+
+[`.github/workflows/build.yml`](.github/workflows/build.yml) 在每次 push 到 `main` 时触发：
+
+1. 从 [tailscale/tailcat Releases](https://github.com/tailscale/tailcat/releases) 下载预编译二进制
+   （linux amd64 / arm64 / armv7）
+2. 用 [`opkg-utils`](https://git.yoctoproject.org/opkg-utils) 的 `opkg-build`
+   把二进制 + init 脚本 + UCI 配置打包成 OpenWrt ipk
+3. `luci-app-tailcat` 是纯 JS + 配置，同样用 `opkg-build` 打包（`Architecture: all`）
+4. 所有 ipk 上传为 workflow artifact，并附到一个 snapshot release
+
+架构映射：
+
+| Go arch | opkg arch |
+|---------|-----------|
+| `amd64` | `x86_64` |
+| `arm64` | `aarch64_cortexa53` |
+| `armv7` | `arm_cortex-a7_neon-vfpv4` |
+
+构建状态与产物：
+- Actions 运行记录：https://github.com/xuthuslei/openwrt-tailcat/actions
+- 最新 snapshot release：https://github.com/xuthuslei/openwrt-tailcat/releases/latest
 
 ## 与已有 VPN 服务的对比
 
