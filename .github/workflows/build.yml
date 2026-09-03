@@ -1,10 +1,14 @@
 #
 # Multi-arch build of tailcat + luci-app-tailcat ipk.
 #
-# We run inside the official OpenWrt SDK container, symlink our two
-# packages into the tree at the paths their Makefiles expect
-# (tailcat -> package/tailcat, luci-app-tailcat -> feeds/luci/applications),
-# update feeds, then build for each target arch.
+# Runs inside the official OpenWrt SDK container (tag = arch name,
+# e.g. openwrt/sdk:x86_64). The SDK image is ~350 MB and ships a
+# pre-configured OpenWrt tree at /home/build/openwrt with a .config
+# already set for that target.
+#
+# We mount our repo into the container, symlink our two packages into
+# the tree at the paths their Makefiles expect, refresh feeds so
+# luci.mk / golang-package.mk are available, then compile.
 #
 
 name: Build ipk
@@ -16,27 +20,19 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  OPENWRT_SDK_TAG: v23.05.5
-  # Arch list: target architecture triples matching SDK names.
-  ARCHES: >-
-    x86_64
-    aarch64_cortexa53
-
 jobs:
   build:
-    name: Build for ${{ matrix.arch }}
+    name: Build for ${{ matrix.tag }}
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86_64, aarch64_cortexa53]
+        # SDK image tags are plain arch names.
+        tag: [x86_64, aarch64_cortex-a76]
 
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Free disk space
         run: |
@@ -48,64 +44,76 @@ jobs:
 
       - name: Pull OpenWrt SDK
         run: |
-          docker pull openwrt/sdk:${{ env.OPENWRT_SDK_TAG }}-${{ matrix.arch }}
+          docker pull openwrt/sdk:${{ matrix.tag }}
           df -h /
 
-      - name: Prepare SDK workspace
+      - name: Build packages
         run: |
-          mkdir -p sdk-build
-          # Symlink our packages into the SDK tree paths expected
-          # by their Makefile include lines.
+          set -eux
+          # Single docker run: mount the repo read-only at /pkg,
+          # symlink packages into the SDK tree, refresh feeds,
+          # enable both packages in .config, and compile.
           docker run --rm \
-            -v "$PWD:/workspace" \
-            openwrt/sdk:${{ env.OPENWRT_SDK_TAG }}-${{ matrix.arch }} \
-            /bin/sh -c '
-              set -eux;
-              cd /home/build/openwrt;
-              # tailcat package -> package/tailcat (uses ../../lang/golang)
-              ln -sf /workspace/tailcat package/tailcat;
-              # luci-app-tailcat -> feeds/luci/applications/luci-app-tailcat
-              mkdir -p feeds/luci/applications;
-              ln -sf /workspace/luci-app-tailcat feeds/luci/applications/luci-app-tailcat;
-              # Refresh feeds so luci.mk is available.
-              ./scripts/feeds update -a || true;
-              ./scripts/feeds install luci || true;
-              ./scripts/feeds install -a || true;
-              # Make defconfig pick up our packages by updating feeds index.
-              echo "CONFIG_PACKAGE_tailcat=y" >> .config;
-              echo "CONFIG_PACKAGE_luci-app-tailcat=y" >> .config;
-              make defconfig;
-              # Build both packages.
-              make -j$(nproc) package/tailcat/compile V=s || \
-                make -j1 package/tailcat/compile V=s;
-              make -j$(nproc) package/luci-app-tailcat/compile V=s || \
-                make -j1 package/luci-app-tailcat/compile V=s;
+            -v "$PWD:/pkg:ro" \
+            -e TARGET_TAG=${{ matrix.tag }} \
+            openwrt/sdk:${{ matrix.tag }} \
+            /bin/bash -c '
+              set -eux
+              cd /home/build/openwrt
+
+              # Symlink our packages into the tree.
+              ln -sf /pkg/tailcat package/tailcat
+
+              # luci-app-tailcat needs the luci feed; refresh feeds first.
+              ./scripts/feeds update -a
+              ./scripts/feeds install luci
+
+              # Now we can place luci-app-tailcat into feeds/luci/applications.
+              ln -sf /pkg/luci-app-tailcat feeds/luci/applications/luci-app-tailcat
+
+              # Re-run feeds install to pick up luci-app-tailcat.
+              ./scripts/feeds install luci-app-tailcat
+
+              # Enable both packages in .config, then expand.
+              ./scripts/feeds install tailcat luci-app-tailcat || true
+              echo "CONFIG_PACKAGE_tailcat=y" >> .config
+              echo "CONFIG_PACKAGE_luci-app-tailcat=y" >> .config
+              make defconfig
+
+              # Compile tailcat (Go-based, may take a while).
+              make -j"$(nproc)" package/tailcat/compile V=s || \
+                make -j1 package/tailcat/compile V=s
+
+              # Compile luci-app-tailcat.
+              make -j"$(nproc)" package/feeds/luci/luci-app-tailcat/compile V=s || \
+                make -j1 package/feeds/luci/luci-app-tailcat/compile V=s
             '
 
       - name: Collect built ipk
         run: |
+          set -eux
           mkdir -p artifacts
           docker run --rm \
-            -v "$PWD:/workspace" \
-            openwrt/sdk:${{ env.OPENWRT_SDK_TAG }}-${{ matrix.arch }} \
-            /bin/sh -c '
-              set -eux;
-              cd /home/build/openwrt;
-              find bin/packages -name "tailcat*.ipk" -exec cp {} /workspace/artifacts/ \; ;
-              find bin/packages -name "luci-app-tailcat*.ipk" -exec cp {} /workspace/artifacts/ \; ;
+            -v "$PWD/artifacts:/out" \
+            openwrt/sdk:${{ matrix.tag }} \
+            /bin/bash -c '
+              set -eux
+              cd /home/build/openwrt
+              find bin -name "tailcat*.ipk" -exec cp {} /out/ \;
+              find bin -name "luci-app-tailcat*.ipk" -exec cp {} /out/ \;
             '
           ls -la artifacts/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ipk-${{ matrix.arch }}
+          name: ipk-${{ matrix.tag }}
           path: artifacts/*.ipk
           if-no-files-found: error
           retention-days: 30
 
   release:
-    name: Attach ipk to release
+    name: Attach ipk to snapshot release
     needs: build
     runs-on: ubuntu-22.04
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -126,6 +134,6 @@ jobs:
           name: Snapshot build ${{ github.sha }}
           body: |
             Automated build from commit ${{ github.sha }}.
-            Built against OpenWrt SDK ${{ env.OPENWRT_SDK_TAG }}.
+            Built against OpenWrt SDK (target tags in artifact names).
           files: all-artifacts/*.ipk
           prerelease: true
