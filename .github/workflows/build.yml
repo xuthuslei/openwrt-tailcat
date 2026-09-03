@@ -77,19 +77,25 @@ jobs:
               #   include ../../lang/golang/golang-package.mk
               # which resolves correctly only when tailcat sits in
               # feeds/packages/utils/ (sibling of feeds/packages/lang/).
+              #
+              # IMPORTANT: feeds update -a re-clones feeds/packages/,
+              # so we must add our symlink AFTER feeds update, not before.
+              ./scripts/feeds update -a
+
+              # Now add tailcat into the packages feed.
               mkdir -p feeds/packages/utils
               ln -sf /pkg/tailcat feeds/packages/utils/tailcat
 
-              # Install the golang feed (provides golang-package.mk).
-              ./scripts/feeds update -a
+              # Install the golang feed (provides golang-package.mk),
+              # then install tailcat (creates package/feeds/packages/tailcat).
               ./scripts/feeds install golang
-              ./scripts/feeds install tailcat
+              ./scripts/feeds install -f packages tailcat
 
-              # Place luci-app-tailcat into the luci feed applications dir.
+              # luci-app-tailcat: install luci feed, add our app, install it.
               ./scripts/feeds install luci
               mkdir -p feeds/luci/applications
               ln -sf /pkg/luci-app-tailcat feeds/luci/applications/luci-app-tailcat
-              ./scripts/feeds install luci-app-tailcat
+              ./scripts/feeds install -f luci luci-app-tailcat
 
               # Enable both packages in .config, then expand.
               echo "CONFIG_PACKAGE_tailcat=y" >> .config
