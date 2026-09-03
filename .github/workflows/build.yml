@@ -193,10 +193,85 @@ jobs:
           cp luci-app-tailcat/src/usr/share/rpcd/acl.d/*.json \
              "$PKGROOT/usr/share/rpcd/acl.d/"
 
-          # i18n
-          mkdir -p "$PKGROOT/usr/share/luci/i18n"
-          cp luci-app-tailcat/po/en/*.po "$PKGROOT/usr/share/luci/i18n/" 2>/dev/null || true
-          cp luci-app-tailcat/po/zh-cn/*.po "$PKGROOT/usr/share/luci/i18n/" 2>/dev/null || true
+          # i18n — compile .po to .lmo and place at the path LuCI expects
+          # (/usr/lib/lua/luci/i18n/<app>.<lang>.lmo).
+          mkdir -p "$PKGROOT/usr/lib/lua/luci/i18n"
+          python3 - <<'PYEOF'
+import os, re, struct, sys
+
+def parse_po(path):
+    """Parse a .po file, return list of (msgid, msgstr)."""
+    entries = []
+    msgid = msgstr = None
+    with open(path, encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith('#') or not line:
+                continue
+            if line.startswith('msgid '):
+                if msgid is not None:
+                    entries.append((msgid, msgstr))
+                msgid = line[6:].strip().strip('"')
+                msgstr = ''
+            elif line.startswith('msgstr '):
+                msgstr = line[8:].strip().strip('"')
+            elif line.startswith('"'):
+                # continuation line
+                cont = line.strip('"')
+                if msgstr is not None:
+                    msgstr += cont
+        if msgid is not None:
+            entries.append((msgid, msgstr))
+    return entries
+
+def write_lmo(entries, out_path):
+    """Write entries as a .lmo binary file (LuCI i18n format).
+
+    Layout:
+      [string data ...][index entries ...][entry count (uint32 BE)]
+    Each index entry is 12 bytes:
+      key_offset(uint32 BE) key_len(uint16 BE)
+      val_offset(uint32 BE) val_len(uint16 BE)
+    """
+    data = bytearray()
+    index = []
+    for msgid, msgstr in entries:
+        key_off = len(data)
+        data += msgid.encode('utf-8') + b'\x00'
+        val_off = len(data)
+        data += msgstr.encode('utf-8') + b'\x00'
+        index.append((key_off, len(msgid.encode('utf-8')),
+                      val_off, len(msgstr.encode('utf-8'))))
+    # append index entries
+    for key_off, key_len, val_off, val_len in index:
+        data += struct.pack('>IH', key_off, key_len)
+        data += struct.pack('>IH', val_off, val_len)
+    # append entry count
+    data += struct.pack('>I', len(index))
+    with open(out_path, 'wb') as f:
+        f.write(data)
+
+po_dir = 'luci-app-tailcat/po'
+out_dir = 'pkg-root/usr/lib/lua/luci/i18n'
+os.makedirs(out_dir, exist_ok=True)
+
+for lang in os.listdir(po_dir):
+    if lang == 'en':
+        # English is the source language; msgid itself is English,
+        # so no .lmo is needed (LuCI falls back to msgid).
+        continue
+    lang_dir = os.path.join(po_dir, lang)
+    if not os.path.isdir(lang_dir):
+        continue
+    for po_file in os.listdir(lang_dir):
+        if not po_file.endswith('.po'):
+            continue
+        app = po_file[:-3]  # strip .po
+        entries = parse_po(os.path.join(lang_dir, po_file))
+        lmo_name = f'{app}.{lang}.lmo'
+        write_lmo(entries, os.path.join(out_dir, lmo_name))
+        print(f'compiled {lmo_name}: {len(entries)} entries')
+PYEOF
 
           # CONTROL
           mkdir -p "$PKGROOT/CONTROL"
