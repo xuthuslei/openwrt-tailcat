@@ -1,0 +1,88 @@
+#!/bin/sh /etc/rc.common
+#
+# Init script for tailcat service instances.
+#
+# Reads UCI config /etc/config/tailcat and spawns one tailcat
+# process per configured instance (serve or forward).
+#
+
+USE_PROCD=1
+START=99
+STOP=10
+
+TAILCAT_BIN="${TAILCAT_BIN:-/usr/bin/tailcat}"
+INSTANCE_HELPER="/usr/lib/tailcat/tailcat-instance.sh"
+CONFIG_NAME="tailcat"
+
+start_service() {
+	local enabled
+	config_load "$CONFIG_NAME"
+	config_get enabled general enabled 0
+	[ "$enabled" = "1" ] || {
+		echo "tailcat is disabled (general.enabled=0)" >&2
+		return 0
+	}
+
+	local instance
+	for instance in $(config_foreach echo_instance instance); do
+		: # placeholder, real loop below
+	done
+
+	config_foreach start_instance instance
+}
+
+# Echo the instance name so the caller can enumerate them.
+echo_instance() {
+	local section="$1"
+	echo "$section"
+}
+
+start_instance() {
+	local section="$1"
+	local enabled
+	config_get enabled "$section" enabled 0
+	[ "$enabled" = "1" ] || return 0
+
+	local role
+	config_get role "$section" role serve
+	[ "$role" = "serve" ] || [ "$role" = "forward" ] || {
+		echo "tailcat[$section]: unknown role '$role'" >&2
+		return 0
+	}
+
+	"$INSTANCE_HELPER" "$section" "$role" | while IFS= read -r line; do
+		# Lines starting with "PROCD:" carry procd command/env/params.
+		case "$line" in
+			"PROCD:COMMAND="*)   procd_set_param command ${line#PROCD:COMMAND=} ;;
+			"PROCD:ENV="*)       local kv="${line#PROCD:ENV=}"; procd_set_param env "${kv%%=*}=${kv#*=}" ;;
+			"PROCD:PARAM="*)     procd_append_param command ${line#PROCD:PARAM=} ;;
+			"PROCD:INSTANCE="*)  procd_open_instance -1; procd_set_param name "${line#PROCD:INSTANCE=}" ;;
+			"PROCD:LIMIT="*)     procd_set_param limits ${line#PROCD:LIMIT=} ;;
+			"PROCD:ERROR="*)     echo "tailcat[$section]: ${line#PROCD:ERROR=}" >&2 ;;
+			"PROCD:CLOSE")       procd_close_instance ;;
+		esac
+	done
+}
+
+reload_service() {
+	stop
+	start
+}
+
+status() {
+	local instance
+	config_load "$CONFIG_NAME"
+	config_foreach show_status instance
+}
+
+show_status() {
+	local section="$1"
+	local role enabled
+	config_get role "$section" role serve
+	config_get enabled "$section" enabled 0
+	echo "=== [$section] role=$role enabled=$enabled ==="
+	ubus call service "list" "{ 'name': 'tailcat' }" 2>/dev/null \
+		| grep -o "\"$section\"[^}]*}" || true
+}
+
+extra_command "status" "Show status of all tailcat instances"

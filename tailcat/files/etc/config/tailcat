@@ -1,0 +1,69 @@
+# Tailcat service configuration.
+#
+# /etc/config/tailcat is read by /etc/init.d/tailcat. Each 'instance'
+# section spawns one tailcat process. Two roles are supported:
+#
+#   role=serve    Expose local ports (or an SSH/file drop box) to a
+#                 remote tailcat client. Produces a tailcat address.
+#
+#   role=forward  Connect to a remote tailcat address and bind one or
+#                 more local ports that forward into the remote service.
+#
+# Common options (any role):
+#   enabled       0|1
+#   verbose        0|1     enable tailcat diagnostic logs
+#   derp_map      URL      path or URL to a custom DERP map json
+#   log_file      path     write tailcat stdout/stderr here
+#
+# serve role options:
+#   serve_kind    ports | ssh | recv     (default: ports)
+#   serve_ports   comma list             when serve_kind=ports, e.g. 8080,8443 or "all"
+#   recv_dir      path                   when serve_kind=recv
+#
+# forward role options:
+#   remote_addr   string   the tailcat address to dial, e.g. tcXXXXX
+#   bind_addr     string   local bind address (default 127.0.0.1)
+#   forwards      string   space-separated local:remote pairs, e.g. "18080:8080 13306:3306"
+#                          a bare port is shorthand for port:port.
+
+config general 'general'
+	option enabled 0
+	# Optional: custom DERP map (URL or local path).
+	# option derp_map 'https://example.com/derpmap.json'
+
+# Example: expose local web ports 8080 and 8443 to a remote tailcat client.
+# The generated tailcat address is printed to log_file.
+config instance 'my_web'
+	option enabled 0
+	option role 'serve'
+	option serve_kind 'ports'
+	option serve_ports '8080,8443'
+	option verbose 0
+	option log_file '/var/log/tailcat/my_web.log'
+
+# Example: run an auth-free SSH server on this router over tailcat.
+config instance 'router_ssh'
+	option enabled 0
+	option role 'serve'
+	option serve_kind 'ssh'
+	option verbose 0
+	option log_file '/var/log/tailcat/router_ssh.log'
+
+# Example: receive files into /root/tailcat-inbox.
+config instance 'inbox'
+	option enabled 0
+	option role 'serve'
+	option serve_kind 'recv'
+	option recv_dir '/root/tailcat-inbox'
+	option log_file '/var/log/tailcat/inbox.log'
+
+# Example: forward a remote tailcat server's ports 8080/3306 to local
+# ports 18080/13306 on this router.
+config instance 'remote_web'
+	option enabled 0
+	option role 'forward'
+	option remote_addr 'tcXXXXXXXXXXXXXXXXXX'
+	option bind_addr '127.0.0.1'
+	option forwards '18080:8080 13306:3306'
+	option verbose 0
+	option log_file '/var/log/tailcat/remote_web.log'

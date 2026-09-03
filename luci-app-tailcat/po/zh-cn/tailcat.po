@@ -1,0 +1,63 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\n"
+
+#: src/root/usr/share/luci/view/tailcat/overview.js
+msgid "Tailcat — Overview"
+msgstr "Tailcat — 概览"
+
+msgid "Tailcat is netcat over Tailscale's data plane, without the control plane. This page shows the global enable flag and a summary of all configured service instances."
+msgstr "Tailcat 是基于 Tailscale 数据平面的 netcat，无需控制平面。此页面显示全局启用开关及所有已配置服务实例的概要。"
+
+msgid "Global Settings"
+msgstr "全局设置"
+
+msgid "Enable tailcat service"
+msgstr "启用 tailcat 服务"
+
+msgid "Custom DERP map (optional)"
+msgstr "自定义 DERP 映射（可选）"
+
+msgid "tailcat binary"
+msgstr "tailcat 二进制"
+
+msgid "Configured Instances"
+msgstr "已配置的实例"
+
+msgid "Each row is one tailcat process. Toggle <em>enabled</em> and apply to (re)start that instance. Use the tabs above to add Local Services or Remote Forwards."
+msgstr "每一行是一个 tailcat 进程。切换 <em>启用</em> 并应用即可（重新）启动该实例。使用上方标签页添加本机服务或远程转发。"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Role"
+msgstr "角色"
+
+msgid "Enabled"
+msgstr "启用"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "● running"
+msgstr "● 运行中"
+
+msgid "● failed/stopped"
+msgstr "● 失败/已停止"
+
+msgid "○ disabled"
+msgstr "○ 已禁用"
+
+msgid "Tailcat"
+msgstr "Tailcat"
+
+msgid "Local Services"
+msgstr "本机服务"
+
+msgid "Remote Forwards"
+msgstr "远程转发"
+
+msgid "Log"
+msgstr "日志"
+
+msgid "Grant access to tailcat service configuration and status"
+msgstr "授予访问 tailcat 服务配置与状态的权限"

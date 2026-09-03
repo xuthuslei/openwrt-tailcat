@@ -1,0 +1,25 @@
+{
+	"luci-app-tailcat": {
+		"description": "Grant access to tailcat service configuration and status",
+		"read": {
+			"ubus": {
+				"service": [ "list" ],
+				"file": [ "list", "read", "stat", "exec" ]
+			},
+			"uci": [ "tailcat" ],
+			"fs": {
+				"/var/log/tailcat": [ "list", "read" ],
+				"/etc/config/tailcat": [ "read" ],
+				"/etc/init.d/tailcat": [ "read" ],
+				"/usr/bin/tailcat": [ "stat" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"file": [ "write", "remove", "exec" ],
+				"service": [ "list" ]
+			},
+			"uci": [ "tailcat" ]
+		}
+	}
+}

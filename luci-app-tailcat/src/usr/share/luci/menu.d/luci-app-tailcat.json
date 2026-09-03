@@ -1,0 +1,38 @@
+{
+	"admin/services/tailcat": {
+		"title": "Tailcat",
+		"order": 90,
+		"action": {
+			"type": "view",
+			"path": "tailcat/overview"
+		},
+		"depends": {
+			"acl": [ "luci-app-tailcat" ],
+			"fs": [ "/etc/init.d/tailcat" ]
+		}
+	},
+	"admin/services/tailcat/services": {
+		"title": "Local Services",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "tailcat/services"
+		}
+	},
+	"admin/services/tailcat/forwards": {
+		"title": "Remote Forwards",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "tailcat/forwards"
+		}
+	},
+	"admin/services/tailcat/log": {
+		"title": "Log",
+		"order": 30,
+		"action": {
+			"type": "view",
+			"path": "tailcat/log"
+		}
+	}
+}
