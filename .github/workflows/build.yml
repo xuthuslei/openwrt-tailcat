@@ -48,9 +48,11 @@ jobs:
           set -eux
           # opkg-utils is not in Ubuntu 22.04 apt; install from source.
           git clone --depth 1 https://git.yoctoproject.org/opkg-utils /tmp/opkg-utils
-          sudo make -C /tmp/opkg-utils install prefix=/usr
-          which ipkg-build
-          ipkg-build --version 2>/dev/null || true
+          # Makefile hardcodes /usr/local; install there and add to PATH.
+          sudo make -C /tmp/opkg-utils install
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          which opkg-build
+          ls /usr/local/bin/opkg*
 
       - name: Download tailcat binary
         run: |
@@ -120,7 +122,7 @@ jobs:
         run: |
           set -eux
           mkdir -p out
-          ipkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root out
+          opkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root out
           ls -la out/
 
       - name: Upload artifacts
@@ -144,8 +146,10 @@ jobs:
           set -eux
           # opkg-utils is not in Ubuntu 22.04 apt; install from source.
           git clone --depth 1 https://git.yoctoproject.org/opkg-utils /tmp/opkg-utils
-          sudo make -C /tmp/opkg-utils install prefix=/usr
-          which ipkg-build
+          sudo make -C /tmp/opkg-utils install
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          which opkg-build
+          ls /usr/local/bin/opkg*
 
       - name: Assemble package tree
         run: |
@@ -206,7 +210,7 @@ jobs:
         run: |
           set -eux
           mkdir -p out
-          ipkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root out
+          opkg-build -o "$(id -un)" -g "$(id -gn)" pkg-root out
           ls -la out/
 
       - name: Upload artifacts
