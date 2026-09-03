@@ -183,11 +183,6 @@ jobs:
           cp luci-app-tailcat/src/root/usr/share/luci/view/tailcat/*.js \
              "$PKGROOT/www/luci-static/resources/view/tailcat/"
 
-          # Controller
-          mkdir -p "$PKGROOT/usr/share/luci/controller"
-          cp -r luci-app-tailcat/src/root/usr/share/luci/controller/tailcat.js \
-             "$PKGROOT/usr/share/luci/controller/"
-
           # Menu registration
           mkdir -p "$PKGROOT/usr/share/luci/menu.d"
           cp luci-app-tailcat/src/usr/share/luci/menu.d/*.json \
