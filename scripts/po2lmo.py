@@ -118,8 +118,11 @@ def parse_po(path):
 
 def _unquote_po(s):
     """Unquote a PO-format quoted string: strip outer quotes and
-    unescape \\" -> ", \\\\ -> \\, \\n -> \\n, \\t -> \\t."""
-    s = s.strip()
+    unescape \\" -> ", \\\\ -> \\, \\n -> \\n, \\t -> \\t.
+
+    Does NOT strip surrounding whitespace: multi-line PO strings
+    can legitimately contain trailing spaces that must be preserved
+    for hash matching."""
     # Must start and end with a quote to be a valid PO string
     if len(s) >= 2 and s[0] == '"' and s[-1] == '"':
         s = s[1:-1]
