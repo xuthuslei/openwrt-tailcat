@@ -6,22 +6,20 @@ var callServiceList = rpc.declare({
 	params: ['name']
 });
 
-var callTailcatVersion = fs.exec('/usr/bin/tailcat', ['--version']).then(function (r) {
-	return (r && r.stdout) ? r.stdout.trim() : 'tailcat not found';
-}).catch(function () { return 'tailcat not found'; });
-
 return view.extend({
 	load: function () {
 		return Promise.all([
 			uci.load('tailcat'),
-			L.resolveDefault(callServiceList('tailcat'), {}),
-			L.resolveDefault(callTailcatVersion, 'n/a')
+			L.resolveDefault(callServiceList('tailcat'), {})
 		]);
 	},
 
 	render: function (data) {
 		var instances = data[1] && data[1].tailcat ? data[1].tailcat.instances : {};
-		var binaryVersion = data[2];
+		// The init script records the tailcat version in UCI
+		// (general.version) at start, so we read it via uci.get —
+		// no rpcd fs.exec ACL needed.
+		var binaryVersion = uci.get('tailcat', 'general', 'version') || 'n/a';
 
 		var m, s, o;
 

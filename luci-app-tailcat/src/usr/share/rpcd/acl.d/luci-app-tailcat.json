@@ -11,7 +11,7 @@
 				"/var/log/tailcat": [ "list", "read" ],
 				"/var/run/tailcat": [ "list", "read" ],
 				"/etc/config/tailcat": [ "read" ],
-				"/etc/init.d/tailcat": [ "read" ],
+				"/etc/init.d/tailcat": [ "read", "exec" ],
 				"/usr/bin/tailcat": [ "stat", "exec" ]
 			}
 		},
