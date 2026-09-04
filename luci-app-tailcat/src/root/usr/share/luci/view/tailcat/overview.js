@@ -39,7 +39,7 @@ return view.extend({
 		o.placeholder = 'https://example.com/derpmap.json';
 		o.editable = true;
 
-		o = s.option(form.DummyValue, '_binary', _('tailcat binary'));
+		o = s.option(form.DummyValue, '_binary', _('tailcat version'));
 		o.textvalue = function () { return binaryVersion; };
 		o.readonly = true;
 

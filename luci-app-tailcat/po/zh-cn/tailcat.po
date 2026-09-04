@@ -19,8 +19,8 @@ msgstr "启用 tailcat 服务"
 msgid "Custom DERP map (optional)"
 msgstr "自定义 DERP 映射（可选）"
 
-msgid "tailcat binary"
-msgstr "tailcat 二进制"
+msgid "tailcat version"
+msgstr "tailcat 版本"
 
 msgid "Configured Instances"
 msgstr "已配置的实例"

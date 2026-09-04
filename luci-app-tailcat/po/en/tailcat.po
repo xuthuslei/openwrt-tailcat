@@ -16,8 +16,8 @@ msgstr "Enable tailcat service"
 msgid "Custom DERP map (optional)"
 msgstr "Custom DERP map (optional)"
 
-msgid "tailcat binary"
-msgstr "tailcat binary"
+msgid "tailcat version"
+msgstr "tailcat version"
 
 msgid "Configured Instances"
 msgstr "Configured Instances"
