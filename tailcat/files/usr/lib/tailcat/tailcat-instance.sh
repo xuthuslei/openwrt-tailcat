@@ -71,6 +71,8 @@ elif [ "$role" = "forward" ]; then
   server=$(uci -q get tailcat.$SECTION.server || echo "")
   bind_addr=$(uci -q get tailcat.$SECTION.bind_addr || echo "0.0.0.0")
   forwards=$(uci -q get tailcat.$SECTION.forwards || echo "")
+  local_port=$(uci -q get tailcat.$SECTION.local_port || echo "")
+  remote_port=$(uci -q get tailcat.$SECTION.remote_port || echo "")
 
   # Resolve the remote tailcat address from the referenced 'server' section.
   # Match by the server's 'name' option, or by the section id itself.
@@ -93,7 +95,19 @@ elif [ "$role" = "forward" ]; then
   fi
 
   [ -n "$remote_addr" ] || { echo "[$SECTION] forward requires a server with remote_addr" >&2; exit 1; }
-  [ -n "$forwards" ] || { echo "[$SECTION] forward requires forwards" >&2; exit 1; }
+
+  # Build the forwards arg: each instance forwards one local:remote pair.
+  # Legacy 'forwards' option (space-separated local:remote pairs) still
+  # works; new 'local_port'+'remote_port' pair takes precedence.
+  fwd_arg=""
+  if [ -n "$local_port" ] && [ -n "$remote_port" ]; then
+    fwd_arg="$local_port:$remote_port"
+  elif [ -n "$forwards" ]; then
+    fwd_arg=$forwards
+  else
+    echo "[$SECTION] forward requires local_port+remote_port (or forwards)" >&2
+    exit 1
+  fi
 
   # As a router, forward instances always listen on 0.0.0.0 so LAN
   # clients can reach them. The open_firewall UCI flag controls
@@ -103,7 +117,7 @@ elif [ "$role" = "forward" ]; then
   set -- "$@" forward
   set -- "$@" "--bind=$bind_addr"
   set -- "$@" "$remote_addr"
-  for m in $forwards; do set -- "$@" "$m"; done
+  for m in $fwd_arg; do set -- "$@" "$m"; done
 fi
 
 # --- emit shell-quoted argv on one line ----------------------------------

@@ -31,9 +31,12 @@
 #
 # forward role options:
 #   server        name of a 'server' section to dial
+#   local_port    the local TCP port to listen on
+#   remote_port   the remote port on the server to forward to
 #   bind_addr     string   local bind address (default 0.0.0.0)
-#   forwards      string   space-separated local:remote pairs, e.g. "18080:8080 13306:3306"
+#   forwards      string   (legacy) space-separated local:remote pairs, e.g. "18080:8080 13306:3306"
 #                          a bare port is shorthand for port:port.
+#                          Ignored when local_port+remote_port are set.
 
 config general 'general'
 	option enabled 0

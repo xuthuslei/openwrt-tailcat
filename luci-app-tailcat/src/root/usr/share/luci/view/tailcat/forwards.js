@@ -82,14 +82,45 @@ return view.extend({
 		 uci.set('tailcat', section_id, 'bind_addr', '0.0.0.0');
 		};
 
+		// grid columns (modalonly=false, read-only display)
+		o = s.option(form.DummyValue, '_name_disp', _('Name'));
+		o.textvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'name') || section_id;
+		};
+		o.modalonly = false;
+
+		o = s.option(form.DummyValue, '_srv_disp', _('Remote server'));
+		o.textvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'server') || '—';
+		};
+		o.modalonly = false;
+
+		o = s.option(form.DummyValue, '_ports_disp', _('Ports (local:remote)'));
+		o.textvalue = function (section_id) {
+		 var lp = uci.get('tailcat', section_id, 'local_port');
+		 var rp = uci.get('tailcat', section_id, 'remote_port');
+		 if (!lp || !rp) return '—';
+		 return lp + ':' + rp;
+		};
+		o.modalonly = false;
+
+		o = s.option(form.DummyValue, '_en_disp', _('Enabled'));
+		o.textvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'enabled') === '1' ? '✓' : '✗';
+		};
+		o.modalonly = false;
+
+		// modal fields (modalonly=true, editable in Add/Edit dialog)
 		o = s.option(form.Value, 'name', _('Name'));
 		o.placeholder = 'remote_web';
-		o.modalonly = false;
+		o.rmempty = false;
+		o.modalonly = true;
 
 		o = s.option(form.Flag, 'enabled', _('Enabled'));
 		o.rmempty = false;
 		o.editable = true;
-		o.modalonly = false;
+		o.modalonly = true;
+		o.default = '1';
 
 		o = s.option(form.ListValue, 'server', _('Remote server'));
 		o.rmempty = false;
@@ -104,6 +135,18 @@ return view.extend({
 			o.value(sname, sname + (addr ? ' (' + addr + ')' : ''));
 		}
 
+		o = s.option(form.Value, 'local_port', _('Local port'));
+		o.datatype = 'port';
+		o.placeholder = '18080';
+		o.rmempty = false;
+		o.modalonly = true;
+
+		o = s.option(form.Value, 'remote_port', _('Remote port'));
+		o.datatype = 'port';
+		o.placeholder = '8080';
+		o.rmempty = false;
+		o.modalonly = true;
+
 		o = s.option(form.Value, 'bind_addr', _('Local bind address'));
 		o.datatype = 'ipaddr';
 		o.placeholder = '0.0.0.0';
@@ -111,12 +154,6 @@ return view.extend({
 		o.rmempty = false;
 		o.modalonly = true;
 		o.description = _('As a router, forward instances bind 0.0.0.0 by default so LAN clients can reach them.');
-
-		o = s.option(form.Value, 'forwards', _('Port forwards (local:remote pairs)'));
-		o.datatype = 'string';
-		o.placeholder = '18080:8080 13306:3306';
-		o.rmempty = false;
-		o.modalonly = true;
 
 		o = s.option(form.Flag, 'open_firewall', _('Open WAN firewall ports'));
 		o.rmempty = false;
