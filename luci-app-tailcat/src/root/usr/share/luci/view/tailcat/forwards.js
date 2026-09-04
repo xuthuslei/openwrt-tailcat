@@ -9,12 +9,42 @@ return view.extend({
 		var m, s, o;
 
 		m = new form.Map('tailcat',
-			_('Remote Forwards (forward)'),
-			_('A <em>forward</em> instance connects to a remote tailcat server address and binds local TCP ports.'));
+			_('Remote Forwards'),
+			_('Define remote tailcat servers once, then create port forwards that reference them by name.'));
 
-		s = m.section(form.GridSection, 'instance', _('Forward Instances'));
+		// --- Remote Servers -------------------------------------------------
+		s = m.section(form.GridSection, 'server', _('Remote Servers'));
 		s.addremove = true;
-		s.addbtntitle = _('Add forward instance');
+		s.addbtntitle = _('Add remote server');
+		s.sortable = true;
+		s.anonymous = true;
+		s.maxcols = 4;
+		s.nodescriptions = true;
+
+		o = s.option(form.Value, 'name', _('Name'));
+		o.placeholder = 'vps';
+		o.rmempty = false;
+		o.modalonly = false;
+
+		o = s.option(form.Value, 'remote_addr', _('Tailcat address'));
+		o.datatype = 'string';
+		o.placeholder = 'tcXXXXXXXXXXXXXXXXXX';
+		o.rmempty = false;
+		o.modalonly = false;
+
+		o = s.option(form.Flag, 'enabled', _('Enabled'));
+		o.rmempty = false;
+		o.editable = true;
+		o.modalonly = false;
+		o.default = '1';
+
+		o = s.option(form.DummyValue, '_spacer', '');
+		o.modalonly = false;
+
+		// --- Port Forwards --------------------------------------------------
+		s = m.section(form.GridSection, 'instance', _('Port Forwards'));
+		s.addremove = true;
+		s.addbtntitle = _('Add port forward');
 		s.sortable = true;
 		s.anonymous = true;
 		s.maxcols = 6;
@@ -36,11 +66,18 @@ return view.extend({
 		o.editable = true;
 		o.modalonly = false;
 
-		o = s.option(form.Value, 'remote_addr', _('Remote tailcat address'));
-		o.datatype = 'string';
-		o.placeholder = 'tcXXXXXXXXXXXXXXXXXX';
+		o = s.option(form.ListValue, 'server', _('Remote server'));
 		o.rmempty = false;
 		o.modalonly = true;
+		o.description = _('Select a remote server defined above.');
+		// Populate from all 'server' sections.
+		var serverSections = uci.sections('tailcat', 'server');
+		for (var i = 0; i < serverSections.length; i++) {
+			var sec = serverSections[i];
+			var sname = uci.get('tailcat', sec['.name'], 'name') || sec['.name'];
+			var addr = uci.get('tailcat', sec['.name'], 'remote_addr') || '';
+			o.value(sname, sname + (addr ? ' (' + addr + ')' : ''));
+		}
 
 		o = s.option(form.Value, 'bind_addr', _('Local bind address'));
 		o.datatype = 'ipaddr';

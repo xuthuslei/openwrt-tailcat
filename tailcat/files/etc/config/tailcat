@@ -1,15 +1,24 @@
 # Tailcat service configuration.
 #
-# /etc/config/tailcat is read by /etc/init.d/tailcat. Each 'instance'
-# section spawns one tailcat process. Two roles are supported:
+# /etc/config/tailcat is read by /etc/init.d/tailcat.
 #
-#   role=serve    Expose local ports (or an SSH/file drop box) to a
-#                 remote tailcat client. Produces a tailcat address.
+# There are three kinds of sections:
 #
-#   role=forward  Connect to a remote tailcat address and bind one or
-#                 more local ports that forward into the remote service.
+#   'general'   global on/off switch and optional DERP map.
 #
-# Common options (any role):
+#   'server'    a remote tailcat server you want to reach.
+#               Each server has a name and a tailcat address.
+#               Servers are managed on the "Remote Servers" page.
+#
+#   'instance'  one tailcat process. Two roles are supported:
+#
+#     role=serve    Expose local ports (or an SSH/file drop box) to a
+#                   remote tailcat client. Produces a tailcat address.
+#
+#     role=forward  Connect to a named remote 'server' and bind one or
+#                   more local ports that forward into the remote service.
+#
+# Common instance options:
 #   enabled       0|1
 #   verbose        0|1     enable tailcat diagnostic logs
 #   derp_map      URL      path or URL to a custom DERP map json
@@ -21,8 +30,8 @@
 #   recv_dir      path                   when serve_kind=recv
 #
 # forward role options:
-#   remote_addr   string   the tailcat address to dial, e.g. tcXXXXX
-#   bind_addr     string   local bind address (default 127.0.0.1)
+#   server        name of a 'server' section to dial
+#   bind_addr     string   local bind address (default 0.0.0.0)
 #   forwards      string   space-separated local:remote pairs, e.g. "18080:8080 13306:3306"
 #                          a bare port is shorthand for port:port.
 
@@ -30,6 +39,17 @@ config general 'general'
 	option enabled 0
 	# Optional: custom DERP map (URL or local path).
 	# option derp_map 'https://example.com/derpmap.json'
+
+# --- Remote servers ------------------------------------------------------
+# Define each remote tailcat server once here, then reference it by name
+# from any forward instance.
+
+config server 'vps'
+	option enabled 1
+	option name 'vps'
+	option remote_addr 'tcXXXXXXXXXXXXXXXXXX'
+
+# --- Instances -----------------------------------------------------------
 
 # Example: expose local web ports 8080 and 8443 to a remote tailcat client.
 # The generated tailcat address is printed to log_file.
@@ -57,13 +77,13 @@ config instance 'inbox'
 	option recv_dir '/root/tailcat-inbox'
 	option log_file '/var/log/tailcat/inbox.log'
 
-# Example: forward a remote tailcat server's ports 8080/3306 to local
+# Example: forward the remote 'vps' server's ports 8080/3306 to local
 # ports 18080/13306 on this router.
 config instance 'remote_web'
 	option enabled 0
 	option role 'forward'
-	option remote_addr 'tcXXXXXXXXXXXXXXXXXX'
-	option bind_addr '127.0.0.1'
+	option server 'vps'
+	option bind_addr '0.0.0.0'
 	option forwards '18080:8080 13306:3306'
 	option verbose 0
 	option log_file '/var/log/tailcat/remote_web.log'

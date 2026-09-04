@@ -100,6 +100,33 @@ msgstr "Log file"
 msgid "Remote Forwards (forward)"
 msgstr "Remote Forwards (forward)"
 
+msgid "Remote Forwards"
+msgstr "Remote Forwards"
+
+msgid "Define remote tailcat servers once, then create port forwards that reference them by name."
+msgstr "Define remote tailcat servers once, then create port forwards that reference them by name."
+
+msgid "Remote Servers"
+msgstr "Remote Servers"
+
+msgid "Add remote server"
+msgstr "Add remote server"
+
+msgid "Tailcat address"
+msgstr "Tailcat address"
+
+msgid "Port Forwards"
+msgstr "Port Forwards"
+
+msgid "Add port forward"
+msgstr "Add port forward"
+
+msgid "Remote server"
+msgstr "Remote server"
+
+msgid "Select a remote server defined above."
+msgstr "Select a remote server defined above."
+
 msgid "A <em>forward</em> instance connects to a remote tailcat server address and binds local TCP ports."
 msgstr "A <em>forward</em> instance connects to a remote tailcat server address and binds local TCP ports."
 

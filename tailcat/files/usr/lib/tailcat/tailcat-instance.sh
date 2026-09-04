@@ -68,11 +68,31 @@ if [ "$role" = "serve" ]; then
   esac
 
 elif [ "$role" = "forward" ]; then
-  remote_addr=$(uci -q get tailcat.$SECTION.remote_addr || echo "")
+  server=$(uci -q get tailcat.$SECTION.server || echo "")
   bind_addr=$(uci -q get tailcat.$SECTION.bind_addr || echo "0.0.0.0")
   forwards=$(uci -q get tailcat.$SECTION.forwards || echo "")
 
-  [ -n "$remote_addr" ] || { echo "[$SECTION] forward requires remote_addr" >&2; exit 1; }
+  # Resolve the remote tailcat address from the referenced 'server' section.
+  # Match by the server's 'name' option, or by the section id itself.
+  remote_addr=""
+  if [ -n "$server" ]; then
+    server_sec=""
+    for sec in $(uci show tailcat 2>/dev/null | sed -n 's/^tailcat\.\([^.]*\)\.remote_addr=.*$/\1/p' | sort -u); do
+      s_name=$(uci -q get tailcat.$sec.name || echo "$sec")
+      if [ "$s_name" = "$server" ] || [ "$sec" = "$server" ]; then
+        server_sec="$sec"
+        break
+      fi
+    done
+    if [ -n "$server_sec" ]; then
+      remote_addr=$(uci -q get tailcat.$server_sec.remote_addr || echo "")
+    else
+      echo "[$SECTION] server '$server' not found" >&2
+      exit 1
+    fi
+  fi
+
+  [ -n "$remote_addr" ] || { echo "[$SECTION] forward requires a server with remote_addr" >&2; exit 1; }
   [ -n "$forwards" ] || { echo "[$SECTION] forward requires forwards" >&2; exit 1; }
 
   # As a router, forward instances always listen on 0.0.0.0 so LAN

@@ -100,6 +100,33 @@ msgstr "日志文件"
 msgid "Remote Forwards (forward)"
 msgstr "远程转发（forward）"
 
+msgid "Remote Forwards"
+msgstr "远程转发"
+
+msgid "Define remote tailcat servers once, then create port forwards that reference them by name."
+msgstr "先定义远程 tailcat 服务器，再创建按名称引用服务器的端口转发。"
+
+msgid "Remote Servers"
+msgstr "远程服务器"
+
+msgid "Add remote server"
+msgstr "添加远程服务器"
+
+msgid "Tailcat address"
+msgstr "Tailcat 地址"
+
+msgid "Port Forwards"
+msgstr "端口转发"
+
+msgid "Add port forward"
+msgstr "添加端口转发"
+
+msgid "Remote server"
+msgstr "远程服务器"
+
+msgid "Select a remote server defined above."
+msgstr "请选择上方已定义的远程服务器。"
+
 msgid "A <em>forward</em> instance connects to a remote tailcat server address and binds local TCP ports."
 msgstr "<em>forward</em> 实例连接到远端 tailcat 服务器地址，并在本机绑定本地 TCP 端口。"
 
