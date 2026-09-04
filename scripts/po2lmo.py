@@ -144,7 +144,7 @@ def parse_po(path):
                 msgstr = ''
                 in_msgstr = False
             elif line.startswith('msgstr '):
-                msgstr = _unquote_po(line[8:])
+                msgstr = _unquote_po(line[7:])
                 in_msgstr = True
             elif line.startswith('"'):
                 cont = _unquote_po(line)
