@@ -14,10 +14,8 @@ return view.extend({
     var role = uci.get('tailcat', sid, 'role');
     if (role && role !== 'serve') continue;
     var addrFile = '/var/run/tailcat/' + sid + '.addr';
-    promises.push(fs.exec('/bin/sh', ['-c',
-     'cat "' + addrFile + '" 2>/dev/null'
-    ]).then(function (r) {
-     var out = (r && r.stdout) ? r.stdout.trim() : '';
+    promises.push(fs.read(addrFile).then(function (out) {
+     out = (out || '').trim();
      if (out) addrMap[sid] = out;
     }).catch(function () {}));
    }
