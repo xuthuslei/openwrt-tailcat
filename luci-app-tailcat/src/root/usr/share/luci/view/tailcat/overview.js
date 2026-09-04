@@ -46,7 +46,7 @@ return view.extend({
 		o.readonly = true;
 
 		s = m.section(form.GridSection, 'instance', _('Configured Instances'),
-			_('Each row is one tailcat process. Toggle <em>enabled</em> and apply to (re)start that instance.'));
+		 _('Each row is one tailcat process. Toggle <em>enabled</em> and apply to (re)start that instance.'));
 		s.addremove = false;
 		s.nodescriptions = true;
 		s.sortable = true;
@@ -66,19 +66,36 @@ return view.extend({
 
 		o = s.option(form.DummyValue, '_status', _('Status'));
 		o.textvalue = function (section_id) {
-			var inst = instances[section_id];
-			if (inst && inst.running) {
-				return '<span style="color:#0a0;font-weight:bold">● running</span>';
-			}
-			if (uci.get('tailcat', section_id, 'enabled') === '1') {
-				return '<span style="color:#a00;font-weight:bold">● failed/stopped</span>';
-			}
-			return '<span style="color:#888">○ disabled</span>';
+		 var inst = instances[section_id];
+		 if (inst && inst.running) {
+		  return '<span style="color:#0a0;font-weight:bold">● running</span>';
+		 }
+		 if (uci.get('tailcat', section_id, 'enabled') === '1') {
+		  return '<span style="color:#a00;font-weight:bold">● failed/stopped</span>';
+		 }
+		 return '<span style="color:#888">○ disabled</span>';
 		};
 		o.rawhtml = true;
 		o.modalonly = false;
+		// Force a re-render of this cell after apply so the running
+		// status reflects the freshly restarted procd services.
+		o.write = function () {};
+		o.remove = function () {};
 
 		return m.render();
+	},
+
+	// After apply (save), restart tailcat then reload the rpcd service
+	// list so the Status column shows the new running/stopped state.
+	handleApply: function (ev) {
+	 return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () {
+	  // small delay so procd settles before we query ubus
+	  return new Promise(function (r) { setTimeout(r, 1500); });
+	 }).then(function () {
+	  return this.load();
+	 }).then(function (data) {
+	  this.render(data);
+	 });
 	},
 
 	onApply: function () {

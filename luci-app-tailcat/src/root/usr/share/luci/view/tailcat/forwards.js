@@ -24,18 +24,18 @@ return view.extend({
 		o = s.option(form.Value, 'name', _('Name'));
 		o.placeholder = 'vps';
 		o.rmempty = false;
-		o.modalonly = false;
+		o.modalonly = true;
 
 		o = s.option(form.Value, 'remote_addr', _('Tailcat address'));
 		o.datatype = 'string';
 		o.placeholder = 'tcXXXXXXXXXXXXXXXXXX';
 		o.rmempty = false;
-		o.modalonly = false;
+		o.modalonly = true;
 
 		o = s.option(form.Flag, 'enabled', _('Enabled'));
 		o.rmempty = false;
 		o.editable = true;
-		o.modalonly = false;
+		o.modalonly = true;
 		o.default = '1';
 
 		// --- Port Forwards --------------------------------------------------
