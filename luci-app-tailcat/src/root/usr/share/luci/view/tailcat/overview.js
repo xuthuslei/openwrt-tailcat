@@ -54,7 +54,9 @@ return view.extend({
 		s.maxcols = 4;
 
 		o = s.option(form.DummyValue, '_name', _('Name'));
-		o.textvalue = function (section_id) { return section_id; };
+		o.textvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'name') || section_id;
+		};
 		o.modalonly = false;
 
 		o = s.option(form.DummyValue, 'role', _('Role'));
@@ -77,28 +79,26 @@ return view.extend({
 		};
 		o.rawhtml = true;
 		o.modalonly = false;
-		// Force a re-render of this cell after apply so the running
-		// status reflects the freshly restarted procd services.
 		o.write = function () {};
 		o.remove = function () {};
 
 		return m.render();
-	},
+		},
 
-	// After apply (save), restart tailcat then reload the rpcd service
-	// list so the Status column shows the new running/stopped state.
-	handleApply: function (ev) {
-	 return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () {
-	  // small delay so procd settles before we query ubus
-	  return new Promise(function (r) { setTimeout(r, 1500); });
-	 }).then(function () {
-	  return this.load();
-	 }).then(function (data) {
-	  this.render(data);
-	 });
-	},
+		// After apply (save), restart tailcat then reload the rpcd service
+		// list so the Status column shows the new running/stopped state.
+		handleApply: function (ev) {
+		 var self = this;
+		 return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () {
+		  return new Promise(function (r) { setTimeout(r, 1500); });
+		 }).then(function () {
+		  return self.load();
+		 }).then(function (data) {
+		  return self.render(data);
+		 });
+		},
 
-	onApply: function () {
-		return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () { return true; });
-	}
-});
+		onApply: function () {
+		 return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () { return true; });
+		}
+	});

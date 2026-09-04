@@ -4,6 +4,9 @@ msgstr "Content-Type: text/plain; charset=UTF-8\n"
 msgid "Tailcat — Overview"
 msgstr "Tailcat — 概览"
 
+msgid "Tailcat is netcat over Tailscale's data plane, without the control plane."
+msgstr "Tailcat 是基于 Tailscale 数据平面的 netcat，无需控制平面。"
+
 msgid "Tailcat is netcat over Tailscale's data plane, without the control plane. This page shows the global enable flag and a summary of all configured service instances."
 msgstr "Tailcat 是基于 Tailscale 数据平面的 netcat，无需控制平面。此页面显示全局启用开关及所有已配置服务实例的概要。"
 
