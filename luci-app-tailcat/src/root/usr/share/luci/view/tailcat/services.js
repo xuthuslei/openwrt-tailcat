@@ -76,7 +76,6 @@ return view.extend({
 		o.rmempty = false;
 		o.editable = true;
 		o.modalonly = true;
-		o.default = '1';
 
 		o = s.option(form.ListValue, 'serve_kind', _('Kind'));
 		o.value('ports', _('Expose local ports'));

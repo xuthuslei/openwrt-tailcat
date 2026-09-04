@@ -64,7 +64,6 @@ return view.extend({
 		o.rmempty = false;
 		o.editable = true;
 		o.modalonly = true;
-		o.default = '1';
 
 		// --- Port Forwards --------------------------------------------------
 		s = m.section(form.GridSection, 'instance', _('Port Forwards'));
@@ -120,7 +119,6 @@ return view.extend({
 		o.rmempty = false;
 		o.editable = true;
 		o.modalonly = true;
-		o.default = '1';
 
 		o = s.option(form.ListValue, 'server', _('Remote server'));
 		o.rmempty = false;
