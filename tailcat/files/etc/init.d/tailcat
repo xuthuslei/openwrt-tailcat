@@ -96,6 +96,12 @@ fw_reload() {
 
 # --- service lifecycle ---------------------------------------------------
 
+# Tell procd to reload tailcat when /etc/config/tailcat changes,
+# so LuCI's uci apply → reload_config triggers a restart.
+service_triggers() {
+	procd_add_reload_trigger "$CONFIG_NAME"
+}
+
 start_service() {
 	local enabled
 	config_load "$CONFIG_NAME"

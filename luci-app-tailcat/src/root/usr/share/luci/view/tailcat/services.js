@@ -9,11 +9,11 @@ return view.extend({
   return uci.load('tailcat').then(function () {
    var sections = uci.sections('tailcat', 'instance');
    var promises = [];
-   for (var i = 0; i < sections.length; i++) {
-    var sid = sections[i]['.name'];
-    var role = uci.get('tailcat', sid, 'role');
+   for (let i = 0; i < sections.length; i++) {
+    let sid = sections[i]['.name'];
+    let role = uci.get('tailcat', sid, 'role');
     if (role && role !== 'serve') continue;
-    var addrFile = '/var/run/tailcat/' + sid + '.addr';
+    let addrFile = '/var/run/tailcat/' + sid + '.addr';
     promises.push(fs.read(addrFile).then(function (out) {
      out = (out || '').trim();
      if (out) addrMap[sid] = out;
