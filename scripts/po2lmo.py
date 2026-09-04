@@ -99,14 +99,14 @@ def parse_po(path):
             if line.startswith('msgid '):
                 if msgid is not None:
                     entries.append((msgid, msgstr))
-                msgid = line[6:].strip().strip('"')
+                msgid = _unquote_po(line[6:])
                 msgstr = ''
                 in_msgstr = False
             elif line.startswith('msgstr '):
-                msgstr = line[8:].strip().strip('"')
+                msgstr = _unquote_po(line[8:])
                 in_msgstr = True
             elif line.startswith('"'):
-                cont = line.strip().strip('"')
+                cont = _unquote_po(line)
                 if in_msgstr and msgstr is not None:
                     msgstr += cont
                 elif msgid is not None:
@@ -114,6 +114,36 @@ def parse_po(path):
         if msgid is not None:
             entries.append((msgid, msgstr))
     return entries
+
+
+def _unquote_po(s):
+    """Unquote a PO-format quoted string: strip outer quotes and
+    unescape \\" -> ", \\\\ -> \\, \\n -> \\n, \\t -> \\t."""
+    s = s.strip()
+    # Must start and end with a quote to be a valid PO string
+    if len(s) >= 2 and s[0] == '"' and s[-1] == '"':
+        s = s[1:-1]
+    # Unescape in correct order: backslash-escape first
+    result = []
+    i = 0
+    while i < len(s):
+        if s[i] == '\\' and i + 1 < len(s):
+            nxt = s[i + 1]
+            if nxt == '"':
+                result.append('"')
+            elif nxt == '\\':
+                result.append('\\')
+            elif nxt == 'n':
+                result.append('\n')
+            elif nxt == 't':
+                result.append('\t')
+            else:
+                result.append(nxt)
+            i += 2
+        else:
+            result.append(s[i])
+            i += 1
+    return ''.join(result)
 
 
 def write_lmo(entries, out_path):
