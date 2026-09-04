@@ -49,16 +49,18 @@ if [ "$role" = "serve" ]; then
   serve_ports=$(uci -q get tailcat.$SECTION.serve_ports || echo "")
   recv_dir=$(uci -q get tailcat.$SECTION.recv_dir || echo "")
 
-  set -- "$@" serve
   case "$serve_kind" in
     ports)
       [ -n "$serve_ports" ] || { echo "[$SECTION] serve_kind=ports but serve_ports empty" >&2; exit 1; }
-      set -- "$@" "$serve_ports"
+      set -- "$@" serve "$serve_ports"
       ;;
     ssh)
-      set -- "$@" no-auth-ssh
+      set -- "$@" serve no-auth-ssh
       ;;
     recv)
+      # 'recv' is its own subcommand in tailcat, not a serve service name:
+      #   tailcat recv ~/inbox
+      # 'serve recv ...' fails with "recv is not a known named service".
       [ -n "$recv_dir" ] || { echo "[$SECTION] serve_kind=recv but recv_dir empty" >&2; exit 1; }
       set -- "$@" recv "$recv_dir"
       ;;
