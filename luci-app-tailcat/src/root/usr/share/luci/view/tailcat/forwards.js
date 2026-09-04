@@ -18,7 +18,7 @@ return view.extend({
 		s.addbtntitle = _('Add remote server');
 		s.sortable = true;
 		s.anonymous = true;
-		s.maxcols = 4;
+		s.maxcols = 3;
 		s.nodescriptions = true;
 
 		o = s.option(form.Value, 'name', _('Name'));
@@ -37,9 +37,6 @@ return view.extend({
 		o.editable = true;
 		o.modalonly = false;
 		o.default = '1';
-
-		o = s.option(form.DummyValue, '_spacer', '');
-		o.modalonly = false;
 
 		// --- Port Forwards --------------------------------------------------
 		s = m.section(form.GridSection, 'instance', _('Port Forwards'));
