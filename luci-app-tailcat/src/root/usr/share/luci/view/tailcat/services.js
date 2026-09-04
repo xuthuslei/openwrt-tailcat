@@ -2,14 +2,31 @@
 
 return view.extend({
  load: function () {
-  // The init script stores each serve instance's tailcat
-  // address in UCI (tailcat_addr) after startup, so we only
-  // need the UCI config here — no rpcd fs access required.
-  return uci.load('tailcat');
+  // The init script sets TAILCAT_ADDR_FILE=/var/run/tailcat/<section>.addr
+  // for each serve instance; tailcat writes its own address there.
+  // Read each file into a section_id -> addr map.
+  var addrMap = {};
+  return uci.load('tailcat').then(function () {
+   var sections = uci.sections('tailcat', 'instance');
+   var promises = [];
+   for (var i = 0; i < sections.length; i++) {
+    var sid = sections[i]['.name'];
+    var role = uci.get('tailcat', sid, 'role');
+    if (role && role !== 'serve') continue;
+    var addrFile = '/var/run/tailcat/' + sid + '.addr';
+    promises.push(fs.read(addrFile).then(function (out) {
+     out = (out || '').trim();
+     if (out) addrMap[sid] = out;
+    }).catch(function () {}));
+   }
+   return Promise.all(promises);
+  }).then(function () {
+   return addrMap;
+  });
  },
 
- render: function () {
-		var m, s, o;
+ render: function (addrMap) {
+  var m, s, o;
 
 		m = new form.Map('tailcat',
 			_('Local Services (serve)'),
@@ -65,7 +82,7 @@ return view.extend({
 
 		o = s.option(form.DummyValue, '_addr_disp', _('Tailcat address'));
 		o.textvalue = function (section_id) {
-		 return uci.get('tailcat', section_id, 'tailcat_addr') || '—';
+		 return addrMap[section_id] || '—';
 		};
 		o.modalonly = false;
 

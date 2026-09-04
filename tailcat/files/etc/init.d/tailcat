@@ -110,15 +110,6 @@ start_service() {
 	# would keep running even though the UCI enabled flag is off.
 	config_foreach cleanup_disabled instance
 
-	# Record the tailcat binary version in UCI so the LuCI overview
-	# page can show it via uci.get — no rpcd fs.exec ACL needed.
-	local version
-	version=$("$TAILCAT_BIN" --version 2>/dev/null | head -n1)
-	[ -n "$version" ] && {
-		uci -q set tailcat.general.version="$version"
-		uci -q commit tailcat
-	}
-
 	config_foreach start_instance instance
 }
 
@@ -199,24 +190,6 @@ start_instance() {
 	procd_set_param respawn
 
 	procd_close_instance
-
-	# After the serve instance is registered, wait for tailcat to
-	# write its address (TAILCAT_ADDR_FILE) and store it in UCI so
-	# the LuCI page can show it via uci.get — no rpcd ACL needed.
-	# BusyBox sleep only takes integer seconds, so no fractional.
-	if [ "$role" = "serve" ] && [ -n "$addr_file" ]; then
-		local tries=0
-		while [ ! -s "$addr_file" ] && [ "$tries" -lt 15 ]; do
-			sleep 1
-			tries=$((tries + 1))
-		done
-		local addr
-		addr=$(cat "$addr_file" 2>/dev/null)
-		if [ -n "$addr" ]; then
-			uci -q set tailcat.$section.tailcat_addr="$addr"
-			uci -q commit tailcat
-		fi
-	fi
 
 	echo "tailcat[$section]: started (role=$role)" >&2
 }
