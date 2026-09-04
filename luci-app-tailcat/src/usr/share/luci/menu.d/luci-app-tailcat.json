@@ -11,6 +11,14 @@
 			"fs": [ "/etc/init.d/tailcat" ]
 		}
 	},
+	"admin/services/tailcat/overview": {
+		"title": "Overview",
+		"order": 5,
+		"action": {
+			"type": "view",
+			"path": "tailcat/overview"
+		}
+	},
 	"admin/services/tailcat/services": {
 		"title": "Local Services",
 		"order": 10,
