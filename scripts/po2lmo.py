@@ -78,6 +78,47 @@ def sfh_hash(data, length, init):
     return hash_val
 
 
+def lmo_canon_hash(s, plural=-1, ctx=None):
+    """Compute LuCI's canonical hash for a translation key.
+
+    Mirrors lmo_canon_hash() in luci-base/src/lib/lmo.c:
+      - collapse runs of whitespace into a single space
+      - strip leading/trailing whitespace
+      - if ctx: append ' \\1' then ctx (also whitespace-collapsed)
+      - if plural > -1: append '\\2<plural>'
+      - return sfh_hash(canon, len(canon), len(canon))
+
+    This MUST match what tparser does at lookup time, otherwise the
+    key_id in the .lmo index will never be found.
+    """
+    parts = []
+
+    def canon(text):
+        out = []
+        prev = ' '
+        for ch in text:
+            if ch.isspace():
+                if not prev.isspace():
+                    out.append(' ')
+                prev = ch
+            else:
+                out.append(ch)
+                prev = ch
+        # strip trailing whitespace
+        while out and out[-1].isspace():
+            out.pop()
+        return ''.join(out)
+
+    res = canon(s)
+    if ctx:
+        res += '\1' + canon(ctx)
+    if plural > -1:
+        res += '\2' + str(plural)
+
+    data = res.encode('utf-8')
+    return sfh_hash(data, len(data), len(data))
+
+
 def parse_po(path):
     """Parse a .po file, return list of (msgid, msgstr) with empty msgid
     kept as ('', header_str)."""
@@ -192,8 +233,8 @@ def write_lmo(entries, out_path):
         key_bytes = msgid.encode('utf-8')
         val_bytes = msgstr.encode('utf-8')
 
-        key_id = sfh_hash(key_bytes, len(key_bytes), len(key_bytes))
-        val_id = sfh_hash(val_bytes, len(val_bytes), len(val_bytes))
+        key_id = lmo_canon_hash(msgid)
+        val_id = lmo_canon_hash(msgstr)
 
         if key_id == val_id:
             continue  # LuCI skips these
