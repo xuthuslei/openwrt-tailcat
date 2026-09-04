@@ -53,6 +53,9 @@ return view.extend({
 		o.placeholder = 'vps';
 		o.rmempty = false;
 		o.modalonly = true;
+		o.cfgvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'name') || section_id;
+		};
 
 		o = s.option(form.Value, 'remote_addr', _('Tailcat address'));
 		o.datatype = 'string';
@@ -114,6 +117,9 @@ return view.extend({
 		o.placeholder = 'remote_web';
 		o.rmempty = false;
 		o.modalonly = true;
+		o.cfgvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'name') || section_id;
+		};
 
 		o = s.option(form.Flag, 'enabled', _('Enabled'));
 		o.rmempty = false;

@@ -71,6 +71,9 @@ return view.extend({
 		o.placeholder = 'my_web';
 		o.rmempty = false;
 		o.modalonly = true;
+		o.cfgvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'name') || section_id;
+		};
 
 		o = s.option(form.Flag, 'enabled', _('Enabled'));
 		o.rmempty = false;
