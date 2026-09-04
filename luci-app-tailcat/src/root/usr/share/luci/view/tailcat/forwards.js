@@ -41,11 +41,10 @@ return view.extend({
 		};
 		o.modalonly = false;
 
-		// grid column: show enabled flag (read-only in table)
-		o = s.option(form.DummyValue, '_en_disp', _('Enabled'));
-		o.textvalue = function (section_id) {
-		 return uci.get('tailcat', section_id, 'enabled') === '1' ? '✓' : '✗';
-		};
+		// grid column: show enabled as a real checkbox (like overview)
+		o = s.option(form.Flag, 'enabled', _('Enabled'));
+		o.rmempty = false;
+		o.editable = true;
 		o.modalonly = false;
 
 		// modal fields (editable in Add/Edit dialog)
@@ -61,11 +60,6 @@ return view.extend({
 		o.datatype = 'string';
 		o.placeholder = 'tcXXXXXXXXXXXXXXXXXX';
 		o.rmempty = false;
-		o.modalonly = true;
-
-		o = s.option(form.Flag, 'enabled', _('Enabled'));
-		o.rmempty = false;
-		o.editable = true;
 		o.modalonly = true;
 
 		// --- Port Forwards --------------------------------------------------
@@ -106,10 +100,17 @@ return view.extend({
 		};
 		o.modalonly = false;
 
-		o = s.option(form.DummyValue, '_en_disp', _('Enabled'));
-		o.textvalue = function (section_id) {
-		 return uci.get('tailcat', section_id, 'enabled') === '1' ? '✓' : '✗';
-		};
+		// Enabled as a real checkbox in the grid (like overview).
+		o = s.option(form.Flag, 'enabled', _('Enabled'));
+		o.rmempty = false;
+		o.editable = true;
+		o.modalonly = false;
+
+		// Open WAN firewall as a checkbox in the grid too.
+		o = s.option(form.Flag, 'open_firewall', _('Open WAN firewall ports'));
+		o.rmempty = false;
+		o.default = '0';
+		o.editable = true;
 		o.modalonly = false;
 
 		// modal fields (modalonly=true, editable in Add/Edit dialog)
@@ -120,11 +121,6 @@ return view.extend({
 		o.cfgvalue = function (section_id) {
 		 return uci.get('tailcat', section_id, 'name') || section_id;
 		};
-
-		o = s.option(form.Flag, 'enabled', _('Enabled'));
-		o.rmempty = false;
-		o.editable = true;
-		o.modalonly = true;
 
 		o = s.option(form.ListValue, 'server', _('Remote server'));
 		o.rmempty = false;
@@ -158,13 +154,6 @@ return view.extend({
 		o.rmempty = false;
 		o.modalonly = true;
 		o.description = _('As a router, forward instances bind 0.0.0.0 by default so LAN clients can reach them.');
-
-		o = s.option(form.Flag, 'open_firewall', _('Open WAN firewall ports'));
-		o.rmempty = false;
-		o.default = '0';
-		o.modalonly = true;
-		o.editable = true;
-		o.description = _('When enabled, open the WAN-side firewall for the local forward ports so external (Internet) hosts can reach them. LAN access is always available. Default is off to avoid exposing ports to the Internet.');
 
 		o = s.option(form.Flag, 'verbose', _('Verbose logs'));
 		o.rmempty = false;

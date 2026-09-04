@@ -69,10 +69,11 @@ return view.extend({
 		};
 		o.modalonly = false;
 
-		o = s.option(form.DummyValue, '_en_disp', _('Enabled'));
-		o.textvalue = function (section_id) {
-		 return uci.get('tailcat', section_id, 'enabled') === '1' ? '✓' : '✗';
-		};
+		// Enabled as a real checkbox in the grid (like overview),
+		// directly toggleable from the table.
+		o = s.option(form.Flag, 'enabled', _('Enabled'));
+		o.rmempty = false;
+		o.editable = true;
 		o.modalonly = false;
 
 		// modal fields (modalonly=true, editable in Add/Edit dialog)
@@ -83,11 +84,6 @@ return view.extend({
 		o.cfgvalue = function (section_id) {
 		 return uci.get('tailcat', section_id, 'name') || section_id;
 		};
-
-		o = s.option(form.Flag, 'enabled', _('Enabled'));
-		o.rmempty = false;
-		o.editable = true;
-		o.modalonly = true;
 
 		o = s.option(form.ListValue, 'serve_kind', _('Kind'));
 		o.value('ports', _('Expose local ports'));
