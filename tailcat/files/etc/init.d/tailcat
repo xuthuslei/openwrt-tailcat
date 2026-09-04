@@ -105,6 +105,11 @@ start_service() {
 		return 0
 	}
 
+	# Drop stale procd instances for sections that are now disabled.
+	# A previous start may have registered them; without this they
+	# would keep running even though the UCI enabled flag is off.
+	config_foreach cleanup_disabled instance
+
 	# Record the tailcat binary version in UCI so the LuCI overview
 	# page can show it via uci.get — no rpcd fs.exec ACL needed.
 	local version
@@ -115,6 +120,15 @@ start_service() {
 	}
 
 	config_foreach start_instance instance
+}
+
+# Remove a procd instance whose UCI section is disabled.
+cleanup_disabled() {
+	local section="$1" enabled
+	config_get enabled "$section" enabled 0
+	[ "$enabled" = "1" ] && return 0
+	ubus call service delete "{\"name\":\"tailcat\",\"instance\":\"$section\"}" 2>/dev/null
+	rm -f "/var/run/tailcat/$section.addr" 2>/dev/null
 }
 
 start_instance() {

@@ -87,17 +87,6 @@ return view.extend({
 		return m.render();
 	},
 
-	handleApply: function (ev) {
-	 var self = this;
-	 return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () {
-	  return new Promise(function (r) { setTimeout(r, 1500); });
-	 }).then(function () {
-	  return self.load();
-	 }).then(function (data) {
-	  return self.render(data);
-	 });
-	},
-
 	onApply: function () {
 		return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () { return true; });
 	}
