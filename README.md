@@ -11,50 +11,56 @@ Tailcat is a re-mix of Tailscale's data plane: it works like `netcat` but traffi
 
 ## Features
 
-The plugin provides two tailcat instance types on an OpenWrt router, both CRUD-manageable via LuCI:
+The plugin manages two kinds of tailcat instances on an OpenWrt router, both CRUD-manageable via LuCI:
 
 | Role | Description | Typical use |
 |------|-------------|-------------|
-| **serve** (local service) | Expose local ports / SSH / file drop box on this router, generating a short tailcat address for a remote client to connect | Expose the router's web service, SSH, or config backup dir to a remote |
-| **forward** (remote forward) | Connect to a remote tailcat address and bind one or more local ports that forward into the remote service | Let the router present a remote tailcat server's ports as ordinary local ports to LAN clients |
+| **serve** (local service) | Expose local ports / auth-free SSH / file drop box on this router, generating a short tailcat address for a remote client to connect | Expose the router's web service, SSH, or a receive directory to a remote |
+| **forward** (remote forward) | Dial a named *remote server* and bind a local port that forwards into a remote service port | Let the router present a remote tailcat server's port as an ordinary local port to LAN clients |
 
-The UI follows the pattern of existing OpenWrt VPN services (`luci-app-openvpn`, `luci-app-wireguard`):
-- **Overview page**: global toggle, tailcat version, summary of all instances
-- **Local Services page**: manage `serve` instances (port expose / auth-free SSH / file drop box)
-- **Remote Forwards page**: manage `forward` instances (remote address + local port forwards)
-- **Status page**: show each instance's running state and the serve instance's current tailcat address (parsed from log)
-- **Log page**: pick an instance's log file and stream with auto-refresh
+A forward instance does not carry the remote tailcat address itself. Instead you define each remote peer once as a **remote server** (name + tailcat address), then reference it by name from any number of forward instances.
+
+The UI follows the pattern of existing OpenWrt VPN services (`luci-app-openvpn`, `luci-app-wireguard`). Four pages are registered under **Services → Tailcat**:
+
+- **Overview**: global on/off toggle, tailcat binary version, and a grid of all instances with per-instance enable checkbox and running state.
+- **Local Services** (`serve` instances): grid of serve instances with kind, ports / receive dir, the current tailcat address, and an enable checkbox; Add/Edit modal exposes name, kind, ports, receive dir, verbose, log file.
+- **Remote Forwards** (`forward` instances): two grids on one page — **Remote Servers** (name + tailcat address + enable) and **Port Forwards** (one forward instance per row, referencing a named server). The Add/Edit modal exposes name, server, local port, remote port, bind address, open-WAN-firewall, verbose, log file.
+- **Log**: pick an instance's `log_file` and stream it with auto-refresh (3 s).
+
+> A `status.js` view also exists in the source tree but is **not** registered in the LuCI menu; per-instance status is instead surfaced as a column on the Overview grid.
 
 ## Directory structure
 
 ```
 openwrt-tailcat/
-├── .github/workflows/build.yml      # GitHub Actions: download prebuilt binary + opkg-build
+├── .github/workflows/build.yml      # GitHub Actions: download prebuilt binary, hand-build ipk
 │
 ├── tailcat/                         # Main package
-│   ├── Makefile                     # OpenWrt package Makefile
+│   ├── Makefile                     # OpenWrt package Makefile (Go source build path)
 │   └── files/
-│       ├── etc/config/tailcat       # UCI config template
-│       ├── etc/init.d/tailcat       # procd init script, starts one process per UCI instance
+│       ├── etc/config/tailcat       # UCI config template (general + server + instance)
+│       ├── etc/init.d/tailcat       # procd init script, starts one process per enabled instance
 │       └── usr/lib/tailcat/
 │           └── tailcat-instance.sh  # Per-instance command-line builder (called by init)
 │
-└── luci-app-tailcat/                # LuCI interface package
+└── luci-app-tailcat/                # LuCI interface package (Architecture: all)
     ├── Makefile
     ├── po/
     │   ├── en/tailcat.po            # English translation
     │   └── zh-cn/tailcat.po         # Simplified Chinese translation
     └── src/
-        ├── root/usr/share/luci/
-        │   └── view/tailcat/
-        │       ├── overview.js      # Overview page
-        │       ├── services.js      # Local Services (serve) config
-        │       ├── forwards.js      # Remote Forwards (forward) config
-        │       ├── status.js        # Runtime status page
-        │       └── log.js           # Log viewer page
-        ├── usr/share/luci/menu.d/luci-app-tailcat.json   # Menu registration
-        └── usr/share/rpcd/acl.d/luci-app-tailcat.json    # rpcd ACL
+        ├── root/usr/share/luci/view/tailcat/
+        │   ├── overview.js          # Overview (global toggle + instance grid)
+        │   ├── services.js          # Local Services (serve instances)
+        │   ├── forwards.js          # Remote Forwards (server grid + forward grid)
+        │   ├── status.js            # Status view (present, not menu-registered)
+        │   └── log.js               # Log viewer (per-instance, 3 s auto-refresh)
+        └── usr/share/
+            ├── luci/menu.d/luci-app-tailcat.json   # Menu registration
+            └── rpcd/acl.d/luci-app-tailcat.json    # rpcd ACL
 ```
+
+> The build job in `build.yml` packs the views from `src/root/usr/share/luci/view/tailcat/` into `www/luci-static/resources/view/tailcat/` in the ipk, and compiles the `.po` files into `.lmo` via `scripts/po2lmo.py`.
 
 ## Installation
 
@@ -110,9 +116,21 @@ After installation, navigate to **Services → Tailcat** in LuCI.
 
 ### 1. Enable the service
 
-On the **Overview** page, turn on **Enable tailcat service** and save.
+On the **Overview** page, turn on **Enable tailcat service** and save & apply. This page also shows the tailcat binary version and a grid of every instance with its running state.
 
-### 2. Create a local service (serve)
+### 2. Define a remote server (optional, only if you will use `forward`)
+
+On the **Remote Forwards** page, in the **Remote Servers** grid, click **Add remote server**:
+
+| Field | Description |
+|-------|-------------|
+| Name | A short name to reference this peer from forward instances, e.g. `vps` |
+| Tailcat address | The address generated by the remote serve instance, e.g. `tcXXXXXXXXXXXXXXXXXX` |
+| Enabled | On/off for this server definition |
+
+A server entry only stores the peer's address; it does not start a process by itself.
+
+### 3. Create a local service (serve)
 
 On the **Local Services** page click **Add serve instance**:
 
@@ -122,28 +140,32 @@ On the **Local Services** page click **Add serve instance**:
 | Kind | `Expose local ports` / `Auth-free SSH server` / `File drop box (recv)` |
 | Ports | Required when Kind is port-expose, e.g. `8080,8443` or `all` |
 | Receive directory | Required when Kind is recv, e.g. `/root/tailcat-inbox` |
+| Verbose logs | Enable tailcat diagnostic logging |
 | Log file | Log output path; tailcat prints the short address here on startup |
 
-After save & apply, find the address (e.g. `tcXXXXXXXXXXXXXXXXXX`) on the **Status** page or in the log, then hand it to the remote client.
+After save & apply, the **Tailcat address** column on the same page shows the address (e.g. `tcXXXXXXXXXXXXXXXXXX`); copy it and hand it to the remote client. The address is also written to `/var/run/tailcat/<section>.addr`.
 
-### 3. Connect to a remote service (forward)
+### 4. Connect to a remote service (forward)
 
-On the **Remote Forwards** page click **Add forward instance**:
+On the **Remote Forwards** page, in the **Port Forwards** grid, click **Add port forward**:
 
 | Field | Description |
 |-------|-------------|
 | Name | Instance name, e.g. `remote_web` |
-| Remote tailcat address | Address generated by the remote serve instance, e.g. `tcXXXXX` |
+| Remote server | Pick a named server defined in the Remote Servers grid above |
+| Local port | Local TCP port to listen on, e.g. `18080` |
+| Remote port | Port on the remote server to forward to, e.g. `8080` |
 | Local bind address | Local listen address, defaults to `0.0.0.0` (LAN reachable) |
-| Port forwards | Space-separated `local:remote` pairs, e.g. `18080:8080 13306:3306`; a bare port equals `port:port` |
-| Open WAN firewall ports | When enabled, open the WAN-side firewall for the local forward ports so external (Internet) hosts can reach them. LAN access is always available. Default is off to avoid exposing ports to the Internet. |
+| Open WAN firewall ports | When enabled, open the WAN-side firewall for the local port so external (Internet) hosts can reach it. LAN access is always available. Default is off. |
+| Verbose logs | Enable tailcat diagnostic logging |
+| Log file | Log output path |
 
-After save & apply, the corresponding local port acts as if it were the remote service.
+After save & apply, the local port behaves as if it were the remote service. Each forward instance maps **one** local port to **one** remote port; create multiple forward instances (referencing the same server) for additional ports.
 
-### 4. View status & logs
+### 5. View status & logs
 
-- **Status** page shows each instance's running state and the serve instance's current tailcat address.
-- **Log** page lets you pick an instance's log file with auto-refresh (3s).
+- The Overview grid shows each instance's running state (running / stopped / disabled).
+- The **Log** page lets you pick an instance's log file with auto-refresh (3 s).
 
 ## UCI config example
 
@@ -154,24 +176,41 @@ config general 'general'
     option enabled 1
     # option derp_map 'https://example.com/derpmap.json'
 
-# Local service: expose 8080 and 8443
+# A remote peer, referenced by name from forward instances.
+config server 'vps'
+    option enabled 1
+    option name 'vps'
+    option remote_addr 'tcXXXXXXXXXXXXXXXXXX'
+
+# Local service: expose 8080 and 8443.
 config instance 'my_web'
     option enabled 1
     option role 'serve'
     option serve_kind 'ports'
     option serve_ports '8080,8443'
+    option verbose 0
     option log_file '/var/log/tailcat/my_web.log'
 
-# Remote forward: forward remote 8080/3306 to local 18080/13306
+# Remote forward: forward the named 'vps' server's port 8080 to local 18080.
 config instance 'remote_web'
     option enabled 1
     option role 'forward'
-    option remote_addr 'tcXXXXXXXXXXXXXXXXXX'
+    option server 'vps'
     option bind_addr '0.0.0.0'
-    option forwards '18080:8080 13306:3306'
+    option local_port '18080'
+    option remote_port '8080'
     option open_firewall 0
+    option verbose 0
     option log_file '/var/log/tailcat/remote_web.log'
 ```
+
+Section types:
+
+- `general` — global on/off (`enabled`) and optional custom DERP map (`derp_map`).
+- `server` — one remote peer: a `name`, the peer's `remote_addr`, and an `enabled` flag. Forward instances reference these by name.
+- `instance` — one tailcat process. `role=serve` exposes a local service; `role=forward` dials a named `server` and binds a local port.
+
+Forward port mapping: the recommended path is one `local_port` + one `remote_port` per instance. The legacy `forwards` option (space-separated `local:remote` pairs, bare port equals `port:port`) still works when `local_port`/`remote_port` are unset.
 
 Common commands:
 

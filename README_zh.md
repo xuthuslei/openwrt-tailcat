@@ -11,50 +11,56 @@ Tailcat 是 Tailscale 数据平面的再混音：像 `netcat` 一样工作，但
 
 ## 功能
 
-本插件在 OpenWrt 路由器上提供两种 tailcat 实例类型，均可通过 LuCI 界面增删改查：
+本插件在 OpenWrt 路由器上管理两种 tailcat 实例，均可通过 LuCI 界面增删改查：
 
 | 角色 | 说明 | 典型用途 |
 |------|------|----------|
-| **serve**（本机服务） | 在本机暴露端口 / SSH / 文件接收箱，生成一个 tailcat 短地址供远端连接 | 把路由器上的 Web 服务、SSH、配置备份目录暴露给远端 |
-| **forward**（远程转发） | 连接到远端 tailcat 地址，在本机绑定一个或多个本地端口转发到远端服务 | 让路由器把远端 tailcat 服务器的端口以本地端口形式提供给 LAN 客户端 |
+| **serve**（本机服务） | 在本机暴露端口 / 无认证 SSH / 文件接收箱，生成一个 tailcat 短地址供远端连接 | 把路由器上的 Web 服务、SSH 或接收目录暴露给远端 |
+| **forward**（远程转发） | 拨号一个*命名远程服务器*，在本机绑定一个本地端口转发到远端服务端口 | 让路由器把远端 tailcat 服务器的端口以本地端口形式提供给 LAN 客户端 |
 
-界面参考 OpenWrt 已有的 VPN 服务（`luci-app-openvpn`、`luci-app-wireguard`）的模式：
-- **概览页**：全局开关、tailcat 版本、所有实例状态汇总
-- **本机服务页**：管理 `serve` 实例（端口暴露 / 无认证 SSH / 文件接收箱）
-- **远程转发页**：管理 `forward` 实例（远端地址 + 本地端口转发）
-- **状态页**：显示每个实例的运行状态与 serve 实例当前的 tailcat 地址（从日志解析）
-- **日志页**：按实例选择日志文件并实时刷新（3 秒）
+forward 实例本身不携带远端 tailcat 地址。你先定义每个远端对端为一个**远程服务器**（名称 + tailcat 地址），再用任意数量的 forward 实例按名称引用它。
+
+界面参考 OpenWrt 已有的 VPN 服务（`luci-app-openvpn`、`luci-app-wireguard`）。**服务 → Tailcat** 下注册了四个页面：
+
+- **概览（Overview）**：全局开关、tailcat 二进制版本，以及一个包含所有实例的网格，每行带启用复选框与运行状态。
+- **本机服务（Local Services，`serve` 实例）**：serve 实例网格，显示类型、端口/接收目录、当前 tailcat 地址与启用复选框；新增/编辑弹窗暴露名称、类型、端口、接收目录、verbose、日志文件。
+- **远程转发（Remote Forwards，`forward` 实例）**：一个页面两个网格 —— **远程服务器**（名称 + tailcat 地址 + 启用）与**端口转发**（每行一个 forward 实例，按名称引用服务器）。新增/编辑弹窗暴露名称、服务器、本地端口、远端端口、绑定地址、open-WAN-firewall、verbose、日志文件。
+- **日志（Log）**：按实例选择 `log_file` 并流式查看，自动刷新（3 秒）。
+
+> 源码树中还存在一个 `status.js` 视图，但它**没有**在 LuCI 菜单中注册；每实例状态改为在概览页网格中以列形式呈现。
 
 ## 目录结构
 
 ```
 openwrt-tailcat/
-├── .github/workflows/build.yml      # GitHub Actions：下载预编译二进制 + opkg-build 打包
+├── .github/workflows/build.yml      # GitHub Actions：下载预编译二进制，手工拼装 ipk
 │
 ├── tailcat/                         # 主程序包
-│   ├── Makefile                     # OpenWrt package Makefile
+│   ├── Makefile                     # OpenWrt package Makefile（Go 源码编译路径）
 │   └── files/
-│       ├── etc/config/tailcat       # UCI 配置模板
-│       ├── etc/init.d/tailcat       # procd init 脚本，按 UCI 实例启动进程
+│       ├── etc/config/tailcat       # UCI 配置模板（general + server + instance）
+│       ├── etc/init.d/tailcat       # procd init 脚本，按已启用实例逐个启动进程
 │       └── usr/lib/tailcat/
 │           └── tailcat-instance.sh  # 实例命令行构造脚本（被 init 调用）
 │
-└── luci-app-tailcat/                # LuCI 界面包
+└── luci-app-tailcat/                # LuCI 界面包（Architecture: all）
     ├── Makefile
     ├── po/
     │   ├── en/tailcat.po            # 英文翻译
     │   └── zh-cn/tailcat.po         # 简体中文翻译
     └── src/
-        ├── root/usr/share/luci/
-        │   └── view/tailcat/
-        │       ├── overview.js      # 概览页
-        │       ├── services.js      # 本机服务（serve）配置
-        │       ├── forwards.js      # 远程转发（forward）配置
-        │       ├── status.js        # 运行状态页
-        │       └── log.js           # 日志查看页
-        ├── usr/share/luci/menu.d/luci-app-tailcat.json   # 菜单注册
-        └── usr/share/rpcd/acl.d/luci-app-tailcat.json    # rpcd ACL
+        ├── root/usr/share/luci/view/tailcat/
+        │   ├── overview.js          # 概览（全局开关 + 实例网格）
+        │   ├── services.js          # 本机服务（serve 实例）
+        │   ├── forwards.js          # 远程转发（服务器网格 + 转发网格）
+        │   ├── status.js            # 状态视图（存在，但未注册到菜单）
+        │   └── log.js               # 日志查看（按实例，3 秒自动刷新）
+        └── usr/share/
+            ├── luci/menu.d/luci-app-tailcat.json   # 菜单注册
+            └── rpcd/acl.d/luci-app-tailcat.json    # rpcd ACL
 ```
+
+> `build.yml` 中的构建任务会把 `src/root/usr/share/luci/view/tailcat/` 下的视图打包进 ipk 的 `www/luci-static/resources/view/tailcat/`，并通过 `scripts/po2lmo.py` 把 `.po` 编译成 `.lmo`。
 
 ## 安装
 
@@ -110,9 +116,21 @@ make package/luci-app-tailcat/compile V=s
 
 ### 1. 启用服务
 
-在 **概览** 页，将 **Enable tailcat service** 打开并保存。
+在 **概览** 页，将 **Enable tailcat service** 打开并保存应用。该页还显示 tailcat 二进制版本，以及一个包含所有实例的网格，每行带运行状态。
 
-### 2. 创建本机服务（serve）
+### 2. 定义远程服务器（可选，仅当你要使用 forward 时）
+
+在 **远程转发** 页的 **远程服务器** 网格中点击 **Add remote server**：
+
+| 字段 | 说明 |
+|------|------|
+| Name | 用于在 forward 实例中引用此对端的短名称，如 `vps` |
+| Tailcat address | 远端 serve 实例生成的地址，如 `tcXXXXXXXXXXXXXXXXXX` |
+| Enabled | 该服务器定义的开关 |
+
+服务器条目只保存对端地址，本身不启动任何进程。
+
+### 3. 创建本机服务（serve）
 
 在 **本机服务** 页点击 **Add serve instance**：
 
@@ -122,27 +140,31 @@ make package/luci-app-tailcat/compile V=s
 | Kind | `Expose local ports` / `Auth-free SSH server` / `File drop box (recv)` |
 | Ports | 当 Kind 为端口暴露时填，如 `8080,8443` 或 `all` |
 | Receive directory | 当 Kind 为 recv 时填，如 `/root/tailcat-inbox` |
+| Verbose logs | 开启 tailcat 诊断日志 |
 | Log file | 日志输出路径，tailcat 启动后会在此打印短地址 |
 
-保存应用后，在 **状态** 页或日志中找到形如 `tcXXXXXXXXXXXXXXXXXX` 的地址，把它交给远端客户端。
+保存应用后，同页的 **Tailcat address** 列会显示地址（如 `tcXXXXXXXXXXXXXXXXXX`），把它交给远端客户端。地址同时写入 `/var/run/tailcat/<section>.addr`。
 
-### 3. 接入远程服务（forward）
+### 4. 接入远程服务（forward）
 
-在 **远程转发** 页点击 **Add forward instance**：
+在 **远程转发** 页的 **端口转发** 网格中点击 **Add port forward**：
 
 | 字段 | 说明 |
 |------|------|
 | Name | 实例名，如 `remote_web` |
-| Remote tailcat address | 远端 serve 实例生成的地址，如 `tcXXXXX` |
+| Remote server | 在上方远程服务器网格中选择一个命名服务器 |
+| Local port | 本地监听 TCP 端口，如 `18080` |
+| Remote port | 要转发到的远端服务器端口，如 `8080` |
 | Local bind address | 本地监听地址，默认 `0.0.0.0`（LAN 可访问） |
-| Port forwards | 空格分隔的 `本地端口:远端端口` 对，如 `18080:8080 13306:3306`；只写一个端口等价于 `端口:端口` |
-| Open WAN firewall ports | 开启后在 WAN 侧防火墙放行本地转发端口，让外网（互联网）主机可访问。LAN 始终可访问。默认关闭，避免端口暴露到互联网 |
+| Open WAN firewall ports | 开启后在 WAN 侧防火墙放行本地端口，让外网（互联网）主机可访问。LAN 始终可访问。默认关闭 |
+| Verbose logs | 开启 tailcat 诊断日志 |
+| Log file | 日志输出路径 |
 
-保存应用后，本机对应端口即可当作远端服务的本地端口使用。
+保存应用后，本地端口的行为等同于远端服务。每个 forward 实例映射**一个**本地端口到**一个**远端端口；如需多个端口，创建多个引用同一服务器的 forward 实例。
 
-### 4. 查看状态与日志
+### 5. 查看状态与日志
 
-- **状态** 页显示每个实例的运行状态与 serve 实例当前的 tailcat 地址。
+- 概览页网格显示每个实例的运行状态（运行中 / 已停止 / 已禁用）。
 - **日志** 页可按实例选择日志文件，支持自动刷新（3 秒）。
 
 ## UCI 配置示例
@@ -154,24 +176,41 @@ config general 'general'
     option enabled 1
     # option derp_map 'https://example.com/derpmap.json'
 
-# 本机服务：暴露 8080 和 8443
+# 一个远端对端，被 forward 实例按名称引用。
+config server 'vps'
+    option enabled 1
+    option name 'vps'
+    option remote_addr 'tcXXXXXXXXXXXXXXXXXX'
+
+# 本机服务：暴露 8080 和 8443。
 config instance 'my_web'
     option enabled 1
     option role 'serve'
     option serve_kind 'ports'
     option serve_ports '8080,8443'
+    option verbose 0
     option log_file '/var/log/tailcat/my_web.log'
 
-# 远程转发：把远端 8080/3306 转发到本机 18080/13306
+# 远程转发：把命名 'vps' 服务器的 8080 端口转发到本地 18080。
 config instance 'remote_web'
     option enabled 1
     option role 'forward'
-    option remote_addr 'tcXXXXXXXXXXXXXXXXXX'
+    option server 'vps'
     option bind_addr '0.0.0.0'
-    option forwards '18080:8080 13306:3306'
+    option local_port '18080'
+    option remote_port '8080'
     option open_firewall 0
+    option verbose 0
     option log_file '/var/log/tailcat/remote_web.log'
 ```
+
+段类型说明：
+
+- `general` —— 全局开关（`enabled`）与可选的自定义 DERP map（`derp_map`）。
+- `server` —— 一个远端对端：`name`、对端的 `remote_addr`、`enabled` 标志。forward 实例按名称引用这些段。
+- `instance` —— 一个 tailcat 进程。`role=serve` 暴露本机服务；`role=forward` 拨号一个命名 `server` 并绑定本地端口。
+
+转发端口映射：推荐做法是每个实例配一个 `local_port` + 一个 `remote_port`。当未设置 `local_port`/`remote_port` 时，旧的 `forwards` 选项（空格分隔的 `本地:远端` 对，单独一个端口等价于 `端口:端口`）仍然有效。
 
 常用命令：
 
