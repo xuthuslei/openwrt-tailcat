@@ -65,10 +65,9 @@ return view.extend({
 		o = s.option(form.DummyValue, 'role', _('Role'));
 		o.modalonly = false;
 
-		o = s.option(form.DummyValue, '_en_disp', _('Enabled'));
-		o.textvalue = function (section_id) {
-		 return uci.get('tailcat', section_id, 'enabled') === '1' ? '✓' : '✗';
-		};
+		o = s.option(form.Flag, 'enabled', _('Enabled'));
+		o.rmempty = false;
+		o.editable = true;
 		o.modalonly = false;
 
 		o = s.option(form.DummyValue, '_status', _('Status'));
@@ -103,9 +102,16 @@ return view.extend({
 		o.default = 'serve';
 		o.readonly = true;  // Can't change role after creation
 
-		o = s.option(form.Flag, 'enabled', _('Enabled'));
+		// Enabled in modal (same UCI field, different option name).
+		o = s.option(form.Flag, '_enabled_modal', _('Enabled'));
 		o.rmempty = false;
 		o.modalonly = true;
+		o.cfgvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'enabled');
+		};
+		o.write = function (section_id, value) {
+		 uci.set('tailcat', section_id, 'enabled', value);
+		};
 
 		// Serve-specific fields (only shown for role=serve)
 		o = s.option(form.ListValue, 'serve_kind', _('Kind'));

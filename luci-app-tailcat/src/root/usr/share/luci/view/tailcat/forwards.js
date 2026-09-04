@@ -62,6 +62,17 @@ return view.extend({
 		o.rmempty = false;
 		o.modalonly = true;
 
+		// Enabled in modal (same UCI field, different option name).
+		o = s.option(form.Flag, '_enabled_modal', _('Enabled'));
+		o.rmempty = false;
+		o.modalonly = true;
+		o.cfgvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'enabled');
+		};
+		o.write = function (section_id, value) {
+		 uci.set('tailcat', section_id, 'enabled', value);
+		};
+
 		// --- Port Forwards --------------------------------------------------
 		s = m.section(form.GridSection, 'instance', _('Port Forwards'));
 		s.addremove = true;
@@ -120,6 +131,29 @@ return view.extend({
 		o.modalonly = true;
 		o.cfgvalue = function (section_id) {
 		 return uci.get('tailcat', section_id, 'name') || section_id;
+		};
+
+		// Enabled in modal (same UCI field, different option name).
+		o = s.option(form.Flag, '_enabled_modal', _('Enabled'));
+		o.rmempty = false;
+		o.modalonly = true;
+		o.cfgvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'enabled');
+		};
+		o.write = function (section_id, value) {
+		 uci.set('tailcat', section_id, 'enabled', value);
+		};
+
+		// Open WAN firewall in modal (same UCI field, different option name).
+		o = s.option(form.Flag, '_fw_modal', _('Open WAN firewall ports'));
+		o.rmempty = false;
+		o.default = '0';
+		o.modalonly = true;
+		o.cfgvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'open_firewall');
+		};
+		o.write = function (section_id, value) {
+		 uci.set('tailcat', section_id, 'open_firewall', value);
 		};
 
 		o = s.option(form.ListValue, 'server', _('Remote server'));

@@ -102,6 +102,18 @@ return view.extend({
 		 return uci.get('tailcat', section_id, 'name') || section_id;
 		};
 
+		// Enabled in modal (same UCI field, different option name
+		// to avoid DOM id conflict with the grid Flag above).
+		o = s.option(form.Flag, '_enabled_modal', _('Enabled'));
+		o.rmempty = false;
+		o.modalonly = true;
+		o.cfgvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'enabled');
+		};
+		o.write = function (section_id, value) {
+		 uci.set('tailcat', section_id, 'enabled', value);
+		};
+
 		o = s.option(form.ListValue, 'serve_kind', _('Kind'));
 		o.value('ports', _('Expose local ports'));
 		o.value('ssh', _('Auth-free SSH server'));
