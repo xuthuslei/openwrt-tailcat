@@ -48,6 +48,7 @@ return view.extend({
 		s = m.section(form.GridSection, 'instance', _('Configured Instances'),
 		 '每一行是一个 tailcat 进程。切换启用并应用即可（重新）启动该实例。');
 		s.addremove = false;
+		s.editable = false;
 		s.nodescriptions = true;
 		s.sortable = true;
 		s.anonymous = true;
