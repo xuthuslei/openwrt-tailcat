@@ -27,7 +27,7 @@ return view.extend({
 
 		m = new form.Map('tailcat',
 			_('Tailcat — Overview'),
-			_('Tailcat is netcat over Tailscale\'s data plane, without the control plane.'));
+			'Tailcat 是基于 Tailscale 数据平面的 netcat，无需控制平面。');
 
 		s = m.section(form.NamedSection, 'general', 'general', _('Global Settings'));
 		s.addremove = false;
@@ -46,7 +46,7 @@ return view.extend({
 		o.readonly = true;
 
 		s = m.section(form.GridSection, 'instance', _('Configured Instances'),
-		 _('Each row is one tailcat process. Toggle <em>enabled</em> and apply to (re)start that instance.'));
+		 '每一行是一个 tailcat 进程。切换启用并应用即可（重新）启动该实例。');
 		s.addremove = false;
 		s.nodescriptions = true;
 		s.sortable = true;
