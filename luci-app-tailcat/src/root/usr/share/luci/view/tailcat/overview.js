@@ -42,64 +42,82 @@ return view.extend({
 		o.editable = true;
 
 		o = s.option(form.DummyValue, '_binary', _('tailcat binary'));
-		o.value = binaryVersion;
+		o.textvalue = function () { return binaryVersion; };
 		o.readonly = true;
 
-		s = m.section(form.GridSection, 'instance', _('Configured Instances'),
-		 '每一行是一个 tailcat 进程。切换启用并应用即可（重新）启动该实例。');
+		// Build a read-only HTML table of all configured instances.
+		// We avoid form.GridSection here because it always renders
+		// an "Edit" button that opens an empty modal (overview is
+		// read-only; editing happens on the Services/Forwards pages).
+		var instanceSections = uci.sections('tailcat', 'instance');
+		var rows = [];
+		for (var i = 0; i < instanceSections.length; i++) {
+			var sid = instanceSections[i]['.name'];
+			var instName = uci.get('tailcat', sid, 'name') || sid;
+			var role = uci.get('tailcat', sid, 'role') || 'serve';
+			var enabled = uci.get('tailcat', sid, 'enabled') === '1';
+			var inst = instances[sid];
+			var running = !!(inst && inst.running);
+			var statusHtml;
+			if (running) {
+				statusHtml = '<span style="color:#0a0;font-weight:bold">● running</span>';
+			} else if (enabled) {
+				statusHtml = '<span style="color:#a00;font-weight:bold">● failed/stopped</span>';
+			} else {
+				statusHtml = '<span style="color:#888">○ disabled</span>';
+			}
+			rows.push([
+				instName,
+				role,
+				enabled ? '✓' : '✗',
+				statusHtml
+			]);
+		}
+
+		// Use a DummyValue to inject the pre-built HTML table.
+		s = m.section(form.NamedSection, 'general', 'general');
 		s.addremove = false;
-		s.editable = false;
-		s.nodescriptions = true;
-		s.sortable = true;
-		s.anonymous = true;
-		s.maxcols = 4;
-
-		o = s.option(form.DummyValue, '_name', _('Name'));
-		o.textvalue = function (section_id) {
-		 return uci.get('tailcat', section_id, 'name') || section_id;
-		};
-		o.modalonly = false;
-
-		o = s.option(form.DummyValue, 'role', _('Role'));
-		o.modalonly = false;
-
-		o = s.option(form.Flag, 'enabled', _('Enabled'));
-		o.editable = true;
-		o.modalonly = false;
-
-		o = s.option(form.DummyValue, '_status', _('Status'));
-		o.textvalue = function (section_id) {
-		 var inst = instances[section_id];
-		 if (inst && inst.running) {
-		  return '<span style="color:#0a0;font-weight:bold">● running</span>';
-		 }
-		 if (uci.get('tailcat', section_id, 'enabled') === '1') {
-		  return '<span style="color:#a00;font-weight:bold">● failed/stopped</span>';
-		 }
-		 return '<span style="color:#888">○ disabled</span>';
-		};
+		o = s.option(form.DummyValue, '_instances');
 		o.rawhtml = true;
-		o.modalonly = false;
-		o.write = function () {};
-		o.remove = function () {};
+		o.textvalue = function () {
+			var html = '<h3>' + _('Configured Instances') + '</h3>';
+			html += '<p>每一行是一个 tailcat 进程。切换启用并应用即可（重新）启动该实例。</p>';
+			html += '<table class="table"><thead><tr>';
+			html += '<th>' + _('Name') + '</th>';
+			html += '<th>' + _('Role') + '</th>';
+			html += '<th>' + _('Enabled') + '</th>';
+			html += '<th>' + _('Status') + '</th>';
+			html += '</tr></thead><tbody>';
+			if (rows.length === 0) {
+				html += '<tr><td colspan="4"><em>' + _('No instances configured') + '</em></td></tr>';
+			} else {
+				for (var r = 0; r < rows.length; r++) {
+					html += '<tr>';
+					for (var c = 0; c < rows[r].length; c++) {
+						html += '<td>' + rows[r][c] + '</td>';
+					}
+					html += '</tr>';
+				}
+			}
+			html += '</tbody></table>';
+			return html;
+		};
 
 		return m.render();
-		},
+	},
 
-		// After apply (save), restart tailcat then reload the rpcd service
-		// list so the Status column shows the new running/stopped state.
-		handleApply: function (ev) {
-		 var self = this;
-		 return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () {
-		  return new Promise(function (r) { setTimeout(r, 1500); });
-		 }).then(function () {
-		  return self.load();
-		 }).then(function (data) {
-		  return self.render(data);
-		 });
-		},
+	handleApply: function (ev) {
+	 var self = this;
+	 return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () {
+	  return new Promise(function (r) { setTimeout(r, 1500); });
+	 }).then(function () {
+	  return self.load();
+	 }).then(function (data) {
+	  return self.render(data);
+	 });
+	},
 
-		onApply: function () {
-		 return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () { return true; });
-		}
-	});
+	onApply: function () {
+		return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () { return true; });
+	}
+});
