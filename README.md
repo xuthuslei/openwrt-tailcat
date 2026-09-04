@@ -1,6 +1,6 @@
 # openwrt-tailcat
 
-> [English](README.md) | [中文](readme_zh.md)
+> [English](README.md) | [中文](README_zh.md)
 
 > Primary repo (GitHub, Actions artifacts are canonical): https://github.com/xuthuslei/openwrt-tailcat
 > Mirror repo (AtomGit): https://atomgit.com/lkjx/openwrt-tailcat
