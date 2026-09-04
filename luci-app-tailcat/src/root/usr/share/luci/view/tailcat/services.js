@@ -124,10 +124,12 @@ return view.extend({
 	},
 
 	// LuCI 25.x has no form.Map onApply hook: the base view's
-	// handleSave persists UCI. Override it to restart tailcat after
-	// saving so add/remove/enabled changes take effect immediately.
-	handleSave: function (ev) {
-		return this.super('handleSave', [ev]).then(function () {
+	// handleSaveApply persists UCI and applies the changes. We hook
+	// it so tailcat restarts AFTER the apply completes — chaining the
+	// restart into handleSave would block ui.changes.apply and leave
+	// the "unsaved changes" notice stuck.
+	handleSaveApply: function (ev, mode) {
+		return this.super('handleSaveApply', [ev, mode]).then(function () {
 			return fs.exec('/etc/init.d/tailcat', ['restart']);
 		});
 	}
