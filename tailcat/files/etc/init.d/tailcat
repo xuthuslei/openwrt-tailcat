@@ -145,6 +145,16 @@ start_instance() {
 	# Build the actual command argv from the instance helper.
 	eval set -- $argv
 
+	# For serve instances, set TAILCAT_ADDR_FILE so tailcat writes
+	# its own address to a known file (more reliable than grepping
+	# the log). The LuCI services page reads this file.
+	local addr_file=""
+	if [ "$role" = "serve" ]; then
+		addr_file="/var/run/tailcat/${section}.addr"
+		mkdir -p /var/run/tailcat
+		: > "$addr_file"
+	fi
+
 	# procd's stdout/stderr params don't reliably create the log
 	# file on all OpenWrt/ImmortalWrt builds, so we wrap the
 	# command in sh -c and redirect ourselves. This guarantees
@@ -152,8 +162,14 @@ start_instance() {
 	# log file the LuCI services page greps for the tailcat addr.
 	if [ -n "$log_file" ]; then
 		mkdir -p "$(dirname "$log_file")"
-		procd_set_param command /bin/sh -c "exec \"\$@\" >> \"$log_file\" 2>&1" /bin/sh "$@"
+		if [ -n "$addr_file" ]; then
+			procd_set_param env TAILCAT_ADDR_FILE="$addr_file"
+			procd_set_param command /bin/sh -c "TAILCAT_ADDR_FILE=\"\$TAILCAT_ADDR_FILE\" exec \"\$@\" >> \"$log_file\" 2>&1" /bin/sh "$@"
+		else
+			procd_set_param command /bin/sh -c "exec \"\$@\" >> \"$log_file\" 2>&1" /bin/sh "$@"
+		fi
 	else
+		[ -n "$addr_file" ] && procd_set_param env TAILCAT_ADDR_FILE="$addr_file"
 		procd_set_param command "$@"
 	fi
 

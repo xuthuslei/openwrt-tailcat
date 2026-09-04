@@ -1,31 +1,31 @@
 'use strict';'require view';'require form';'require fs';'require uci';
 
 return view.extend({
-	load: function () {
-		// Read each serve instance's log file and extract the
-		// tailcat address from the "Server listening with new
-		// address:" line. Store in a section_id -> addr map.
-		var addrMap = {};
-		return uci.load('tailcat').then(function () {
-			var sections = uci.sections('tailcat', 'instance');
-			var promises = [];
-			for (var i = 0; i < sections.length; i++) {
-				var sid = sections[i]['.name'];
-				var role = uci.get('tailcat', sid, 'role');
-				if (role && role !== 'serve') continue;
-				var logFile = uci.get('tailcat', sid, 'log_file') || ('/var/log/tailcat/' + sid + '.log');
-				promises.push(fs.exec('/bin/sh', ['-c',
-					'grep -o "listening with new address: [^ ]*" "' + logFile + '" 2>/dev/null | tail -1 | sed "s/listening with new address: //"'
-				]).then(function (r) {
-					var out = (r && r.stdout) ? r.stdout.trim() : '';
-					if (out) addrMap[sid] = out;
-				}).catch(function () {}));
-			}
-			return Promise.all(promises);
-		}).then(function () {
-			return addrMap;
-		});
-	},
+ load: function () {
+  // init script sets TAILCAT_ADDR_FILE=/var/run/tailcat/<section>.addr
+  // for each serve instance. tailcat writes its own address there.
+  // Read each file into a section_id -> addr map.
+  var addrMap = {};
+  return uci.load('tailcat').then(function () {
+   var sections = uci.sections('tailcat', 'instance');
+   var promises = [];
+   for (var i = 0; i < sections.length; i++) {
+    var sid = sections[i]['.name'];
+    var role = uci.get('tailcat', sid, 'role');
+    if (role && role !== 'serve') continue;
+    var addrFile = '/var/run/tailcat/' + sid + '.addr';
+    promises.push(fs.exec('/bin/sh', ['-c',
+     'cat "' + addrFile + '" 2>/dev/null'
+    ]).then(function (r) {
+     var out = (r && r.stdout) ? r.stdout.trim() : '';
+     if (out) addrMap[sid] = out;
+    }).catch(function () {}));
+   }
+   return Promise.all(promises);
+  }).then(function () {
+   return addrMap;
+  });
+ },
 
 	render: function (addrMap) {
 		var m, s, o;
