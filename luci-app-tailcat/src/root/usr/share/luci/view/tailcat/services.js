@@ -2,10 +2,32 @@
 
 return view.extend({
 	load: function () {
-		return uci.load('tailcat');
+		// Read each serve instance's log file and extract the
+		// tailcat address from the "Server listening with new
+		// address:" line. Store in a section_id -> addr map.
+		var addrMap = {};
+		return uci.load('tailcat').then(function () {
+			var sections = uci.sections('tailcat', 'instance');
+			var promises = [];
+			for (var i = 0; i < sections.length; i++) {
+				var sid = sections[i]['.name'];
+				var role = uci.get('tailcat', sid, 'role');
+				if (role && role !== 'serve') continue;
+				var logFile = uci.get('tailcat', sid, 'log_file') || ('/var/log/tailcat/' + sid + '.log');
+				promises.push(fs.exec('/bin/sh', ['-c',
+					'grep -o "listening with new address: [^ ]*" "' + logFile + '" 2>/dev/null | tail -1 | sed "s/listening with new address: //"'
+				]).then(function (r) {
+					var out = (r && r.stdout) ? r.stdout.trim() : '';
+					if (out) addrMap[sid] = out;
+				}).catch(function () {}));
+			}
+			return Promise.all(promises);
+		}).then(function () {
+			return addrMap;
+		});
 	},
 
-	render: function () {
+	render: function (addrMap) {
 		var m, s, o;
 
 		m = new form.Map('tailcat',
@@ -57,6 +79,12 @@ return view.extend({
 		  return '—';
 		 }
 		 return '—';
+		};
+		o.modalonly = false;
+
+		o = s.option(form.DummyValue, '_addr_disp', _('Tailcat address'));
+		o.textvalue = function (section_id) {
+		 return addrMap[section_id] || '—';
 		};
 		o.modalonly = false;
 
