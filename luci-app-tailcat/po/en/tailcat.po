@@ -1,63 +1,188 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=UTF-8\n"
 
-#: src/root/usr/share/luci/view/tailcat/overview.js
 msgid "Tailcat — Overview"
-msgstr "Tailcat — 概览"
+msgstr "Tailcat — Overview"
 
 msgid "Tailcat is netcat over Tailscale's data plane, without the control plane. This page shows the global enable flag and a summary of all configured service instances."
-msgstr "Tailcat 是基于 Tailscale 数据平面的 netcat，无需控制平面。此页面显示全局启用开关及所有已配置服务实例的概要。"
+msgstr "Tailcat is netcat over Tailscale's data plane, without the control plane. This page shows the global enable flag and a summary of all configured service instances."
 
 msgid "Global Settings"
-msgstr "全局设置"
+msgstr "Global Settings"
 
 msgid "Enable tailcat service"
-msgstr "启用 tailcat 服务"
+msgstr "Enable tailcat service"
 
 msgid "Custom DERP map (optional)"
-msgstr "自定义 DERP 映射（可选）"
+msgstr "Custom DERP map (optional)"
 
 msgid "tailcat binary"
-msgstr "tailcat 二进制"
+msgstr "tailcat binary"
 
 msgid "Configured Instances"
-msgstr "已配置的实例"
+msgstr "Configured Instances"
 
 msgid "Each row is one tailcat process. Toggle <em>enabled</em> and apply to (re)start that instance. Use the tabs above to add Local Services or Remote Forwards."
-msgstr "每一行是一个 tailcat 进程。切换 <em>启用</em> 并应用即可（重新）启动该实例。使用上方标签页添加本机服务或远程转发。"
+msgstr "Each row is one tailcat process. Toggle <em>enabled</em> and apply to (re)start that instance. Use the tabs above to add Local Services or Remote Forwards."
 
 msgid "Name"
-msgstr "名称"
+msgstr "Name"
 
 msgid "Role"
-msgstr "角色"
+msgstr "Role"
 
 msgid "Enabled"
-msgstr "启用"
+msgstr "Enabled"
 
 msgid "Status"
-msgstr "状态"
+msgstr "Status"
 
 msgid "● running"
-msgstr "● 运行中"
+msgstr "● running"
 
 msgid "● failed/stopped"
-msgstr "● 失败/已停止"
+msgstr "● failed/stopped"
 
 msgid "○ disabled"
-msgstr "○ 已禁用"
+msgstr "○ disabled"
 
 msgid "Tailcat"
 msgstr "Tailcat"
 
 msgid "Local Services"
-msgstr "本机服务"
+msgstr "Local Services"
 
 msgid "Remote Forwards"
-msgstr "远程转发"
+msgstr "Remote Forwards"
 
 msgid "Log"
-msgstr "日志"
+msgstr "Log"
 
 msgid "Grant access to tailcat service configuration and status"
-msgstr "授予访问 tailcat 服务配置与状态的权限"
+msgstr "Grant access to tailcat service configuration and status"
+
+msgid "Local Services (serve)"
+msgstr "Local Services (serve)"
+
+msgid "A <em>serve</em> instance exposes something on this router to a remote tailcat client."
+msgstr "A <em>serve</em> instance exposes something on this router to a remote tailcat client."
+
+msgid "Serve Instances"
+msgstr "Serve Instances"
+
+msgid "Add serve instance"
+msgstr "Add serve instance"
+
+msgid "Kind"
+msgstr "Kind"
+
+msgid "Expose local ports"
+msgstr "Expose local ports"
+
+msgid "Auth-free SSH server"
+msgstr "Auth-free SSH server"
+
+msgid "File drop box (recv)"
+msgstr "File drop box (recv)"
+
+msgid "Ports (comma list or \"all\")"
+msgstr "Ports (comma list or \"all\")"
+
+msgid "Receive directory"
+msgstr "Receive directory"
+
+msgid "Verbose logs"
+msgstr "Verbose logs"
+
+msgid "Log file"
+msgstr "Log file"
+
+msgid "Remote Forwards (forward)"
+msgstr "Remote Forwards (forward)"
+
+msgid "A <em>forward</em> instance connects to a remote tailcat server address and binds local TCP ports."
+msgstr "A <em>forward</em> instance connects to a remote tailcat server address and binds local TCP ports."
+
+msgid "Forward Instances"
+msgstr "Forward Instances"
+
+msgid "Add forward instance"
+msgstr "Add forward instance"
+
+msgid "Remote tailcat address"
+msgstr "Remote tailcat address"
+
+msgid "Local bind address"
+msgstr "Local bind address"
+
+msgid "As a router, forward instances bind 0.0.0.0 by default so LAN clients can reach them."
+msgstr "As a router, forward instances bind 0.0.0.0 by default so LAN clients can reach them."
+
+msgid "Port forwards (local:remote pairs)"
+msgstr "Port forwards (local:remote pairs)"
+
+msgid "Open WAN firewall ports"
+msgstr "Open WAN firewall ports"
+
+msgid "When enabled, open the WAN-side firewall for the local forward ports so external (Internet) hosts can reach them. LAN access is always available. Default is off to avoid exposing ports to the Internet."
+msgstr "When enabled, open the WAN-side firewall for the local forward ports so external (Internet) hosts can reach them. LAN access is always available. Default is off to avoid exposing ports to the Internet."
+
+msgid "Restart Service"
+msgstr "Restart Service"
+
+msgid "tailcat service restarted"
+msgstr "tailcat service restarted"
+
+msgid "tailcat binary version: "
+msgstr "tailcat binary version: "
+
+msgid "Tailcat Status"
+msgstr "Tailcat Status"
+
+msgid "Tailcat Logs"
+msgstr "Tailcat Logs"
+
+msgid "Tailcat Address"
+msgstr "Tailcat Address"
+
+msgid "Instance"
+msgstr "Instance"
+
+msgid "Instance: "
+msgstr "Instance: "
+
+msgid "Detail"
+msgstr "Detail"
+
+msgid "Refresh"
+msgstr "Refresh"
+
+msgid "Auto-refresh (3s)"
+msgstr "Auto-refresh (3s)"
+
+msgid "Clear"
+msgstr "Clear"
+
+msgid "Select an instance log file above."
+msgstr "Select an instance log file above."
+
+msgid "No log files configured"
+msgstr "No log files configured"
+
+msgid "(no log file selected)"
+msgstr "(no log file selected)"
+
+msgid "Error reading log: "
+msgstr "Error reading log: "
+
+msgid "Logs are written by each tailcat instance to the path set in its "
+msgstr "Logs are written by each tailcat instance to the path set in its "
+
+msgid " option. The tailcat address for serve instances is printed as "
+msgstr " option. The tailcat address for serve instances is printed as "
+
+msgid "(empty or not yet created)"
+msgstr "(empty or not yet created)"
+
+msgid "No instances configured."
+msgstr "No instances configured."

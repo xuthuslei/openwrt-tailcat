@@ -1,7 +1,6 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=UTF-8\n"
 
-#: src/root/usr/share/luci/view/tailcat/overview.js
 msgid "Tailcat — Overview"
 msgstr "Tailcat — 概览"
 
@@ -61,3 +60,129 @@ msgstr "日志"
 
 msgid "Grant access to tailcat service configuration and status"
 msgstr "授予访问 tailcat 服务配置与状态的权限"
+
+msgid "Local Services (serve)"
+msgstr "本机服务（serve）"
+
+msgid "A <em>serve</em> instance exposes something on this router to a remote tailcat client."
+msgstr "<em>serve</em> 实例在本路由器上暴露端口 / SSH / 文件接收箱，供远端 tailcat 客户端连接。"
+
+msgid "Serve Instances"
+msgstr "Serve 实例"
+
+msgid "Add serve instance"
+msgstr "添加 serve 实例"
+
+msgid "Kind"
+msgstr "类型"
+
+msgid "Expose local ports"
+msgstr "暴露本机端口"
+
+msgid "Auth-free SSH server"
+msgstr "免认证 SSH 服务器"
+
+msgid "File drop box (recv)"
+msgstr "文件接收箱（recv）"
+
+msgid "Ports (comma list or \"all\")"
+msgstr "端口（逗号分隔列表或 \"all\"）"
+
+msgid "Receive directory"
+msgstr "接收目录"
+
+msgid "Verbose logs"
+msgstr "详细日志"
+
+msgid "Log file"
+msgstr "日志文件"
+
+msgid "Remote Forwards (forward)"
+msgstr "远程转发（forward）"
+
+msgid "A <em>forward</em> instance connects to a remote tailcat server address and binds local TCP ports."
+msgstr "<em>forward</em> 实例连接到远端 tailcat 服务器地址，并在本机绑定本地 TCP 端口。"
+
+msgid "Forward Instances"
+msgstr "Forward 实例"
+
+msgid "Add forward instance"
+msgstr "添加 forward 实例"
+
+msgid "Remote tailcat address"
+msgstr "远端 tailcat 地址"
+
+msgid "Local bind address"
+msgstr "本地绑定地址"
+
+msgid "As a router, forward instances bind 0.0.0.0 by default so LAN clients can reach them."
+msgstr "作为路由器，forward 实例默认绑定 0.0.0.0，以便局域网客户端可以访问。"
+
+msgid "Port forwards (local:remote pairs)"
+msgstr "端口转发（本地:远端 对）"
+
+msgid "Open WAN firewall ports"
+msgstr "开放 WAN 防火墙端口"
+
+msgid "When enabled, open the WAN-side firewall for the local forward ports so external (Internet) hosts can reach them. LAN access is always available. Default is off to avoid exposing ports to the Internet."
+msgstr "启用后，为本地转发端口开放 WAN 侧防火墙，使外网（互联网）主机可以访问。局域网始终可访问。默认关闭，以避免端口暴露到互联网。"
+
+msgid "Restart Service"
+msgstr "重启服务"
+
+msgid "tailcat service restarted"
+msgstr "tailcat 服务已重启"
+
+msgid "tailcat binary version: "
+msgstr "tailcat 二进制版本："
+
+msgid "Tailcat Status"
+msgstr "Tailcat 状态"
+
+msgid "Tailcat Logs"
+msgstr "Tailcat 日志"
+
+msgid "Tailcat Address"
+msgstr "Tailcat 地址"
+
+msgid "Instance"
+msgstr "实例"
+
+msgid "Instance: "
+msgstr "实例："
+
+msgid "Detail"
+msgstr "详情"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Auto-refresh (3s)"
+msgstr "自动刷新（3 秒）"
+
+msgid "Clear"
+msgstr "清除"
+
+msgid "Select an instance log file above."
+msgstr "请在上方选择一个实例日志文件。"
+
+msgid "No log files configured"
+msgstr "未配置日志文件"
+
+msgid "(no log file selected)"
+msgstr "（未选择日志文件）"
+
+msgid "Error reading log: "
+msgstr "读取日志出错："
+
+msgid "Logs are written by each tailcat instance to the path set in its "
+msgstr "日志由每个 tailcat 实例写入其 "
+
+msgid " option. The tailcat address for serve instances is printed as "
+msgstr " 选项所设置的路径。serve 实例的 tailcat 地址会打印为 "
+
+msgid "(empty or not yet created)"
+msgstr "（为空或尚未创建）"
+
+msgid "No instances configured."
+msgstr "未配置任何实例。"
