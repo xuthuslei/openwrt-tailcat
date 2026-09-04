@@ -177,6 +177,24 @@ start_instance() {
 
 	procd_close_instance
 
+	# After the serve instance is registered, wait for tailcat to
+	# write its address (TAILCAT_ADDR_FILE) and store it in UCI so
+	# the LuCI page can show it via uci.get — no rpcd ACL needed.
+	# BusyBox sleep only takes integer seconds, so no fractional.
+	if [ "$role" = "serve" ] && [ -n "$addr_file" ]; then
+		local tries=0
+		while [ ! -s "$addr_file" ] && [ "$tries" -lt 15 ]; do
+			sleep 1
+			tries=$((tries + 1))
+		done
+		local addr
+		addr=$(cat "$addr_file" 2>/dev/null)
+		if [ -n "$addr" ]; then
+			uci -q set tailcat.$section.tailcat_addr="$addr"
+			uci -q commit tailcat
+		fi
+	fi
+
 	echo "tailcat[$section]: started (role=$role)" >&2
 }
 
