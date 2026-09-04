@@ -91,11 +91,23 @@ return view.extend({
 		o = s.option(form.Value, 'name', _('Name'));
 		o.rmempty = false;
 		o.modalonly = true;
+		o.cfgvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'name') || section_id;
+		};
+
+		// Hidden role field for depends conditionals
+		o = s.option(form.ListValue, 'role', _('Role'));
+		o.modalonly = true;
+		o.value('serve', _('Serve'));
+		o.value('forward', _('Forward'));
+		o.default = 'serve';
+		o.readonly = true;  // Can't change role after creation
 
 		o = s.option(form.Flag, 'enabled', _('Enabled'));
 		o.rmempty = false;
 		o.modalonly = true;
 
+		// Serve-specific fields (only shown for role=serve)
 		o = s.option(form.ListValue, 'serve_kind', _('Kind'));
 		o.value('ports', _('Expose local ports'));
 		o.value('ssh', _('Auth-free SSH server'));
@@ -103,6 +115,7 @@ return view.extend({
 		o.default = 'ports';
 		o.editable = true;
 		o.modalonly = true;
+		o.depends('role', 'serve');
 
 		o = s.option(form.Value, 'serve_ports', _('Ports (comma list or "all")'));
 		o.datatype = 'string';
@@ -116,38 +129,44 @@ return view.extend({
 		o.depends('serve_kind', 'recv');
 		o.modalonly = true;
 
+		// Forward-specific fields (only shown for role=forward)
+		o = s.option(form.ListValue, 'server', _('Remote server'));
+		o.modalonly = true;
+		o.description = _('Select a remote server defined above.');
+		o.depends('role', 'forward');
+		var serverSections = uci.sections('tailcat', 'server');
+		for (var si = 0; si < serverSections.length; si++) {
+			var sec = serverSections[si];
+			var sname = uci.get('tailcat', sec['.name'], 'name') || sec['.name'];
+			o.value(sname, sname);
+		}
+
 		o = s.option(form.Value, 'bind_addr', _('Local bind address'));
 		o.datatype = 'ipaddr';
 		o.placeholder = '0.0.0.0';
 		o.default = '0.0.0.0';
 		o.modalonly = true;
-
-		o = s.option(form.ListValue, 'server', _('Remote server'));
-		o.modalonly = true;
-		o.description = _('Select a remote server defined above.');
-		var serverSections = uci.sections('tailcat', 'server');
-		for (var si = 0; si < serverSections.length; si++) {
-			var sec = serverSections[si];
-			var sname = uci.get('tailcat', sec['.name'], 'name') || sec['.name'];
-			var addr = uci.get('tailcat', sec['.name'], 'remote_addr') || '';
-			o.value(sname, sname + (addr ? ' (' + addr + ')' : ''));
-		}
+		o.depends('role', 'forward');
 
 		o = s.option(form.Value, 'local_port', _('Local port'));
 		o.datatype = 'port';
 		o.placeholder = '18080';
 		o.modalonly = true;
+		o.depends('role', 'forward');
 
 		o = s.option(form.Value, 'remote_port', _('Remote port'));
 		o.datatype = 'port';
 		o.placeholder = '8080';
 		o.modalonly = true;
+		o.depends('role', 'forward');
 
 		o = s.option(form.Flag, 'open_firewall', _('Open WAN firewall ports'));
 		o.rmempty = false;
 		o.default = '0';
 		o.modalonly = true;
+		o.depends('role', 'forward');
 
+		// Common fields
 		o = s.option(form.Flag, 'verbose', _('Verbose logs'));
 		o.rmempty = false;
 		o.modalonly = true;
