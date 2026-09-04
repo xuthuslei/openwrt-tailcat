@@ -13,6 +13,12 @@ return view.extend({
 			_('Define remote tailcat servers once, then create port forwards that reference them by name.'));
 
 		// --- Remote Servers -------------------------------------------------
+		// Each server needs both a read-only grid column (modalonly=false,
+		// shown in the table) and an editable modal field (modalonly=true,
+		// shown in the Add/Edit dialog). LuCI's cloneOptions skips
+		// modalonly=false options when building the modal, so we define
+		// two option objects per field: a DummyValue for display and a
+		// Value/Flag for editing.
 		s = m.section(form.GridSection, 'server', _('Remote Servers'));
 		s.addremove = true;
 		s.addbtntitle = _('Add remote server');
@@ -21,6 +27,28 @@ return view.extend({
 		s.maxcols = 3;
 		s.nodescriptions = true;
 
+		// grid column: show name (read-only in table)
+		o = s.option(form.DummyValue, '_name_disp', _('Name'));
+		o.textvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'name') || section_id;
+		};
+		o.modalonly = false;
+
+		// grid column: show remote_addr (read-only in table)
+		o = s.option(form.DummyValue, '_addr_disp', _('Tailcat address'));
+		o.textvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'remote_addr') || '—';
+		};
+		o.modalonly = false;
+
+		// grid column: show enabled flag (read-only in table)
+		o = s.option(form.DummyValue, '_en_disp', _('Enabled'));
+		o.textvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'enabled') === '1' ? '✓' : '✗';
+		};
+		o.modalonly = false;
+
+		// modal fields (editable in Add/Edit dialog)
 		o = s.option(form.Value, 'name', _('Name'));
 		o.placeholder = 'vps';
 		o.rmempty = false;
