@@ -40,7 +40,11 @@ return view.extend({
 		o.editable = true;
 
 		o = s.option(form.DummyValue, '_binary', _('tailcat version'));
-		o.textvalue = function () { return binaryVersion; };
+		// In LuCI 25.x the DummyValue renderWidget uses
+		// (cfgvalue != null) ? cfgvalue : this.default, where cfgvalue
+		// is read from the UCI option ('_binary' doesn't exist -> null).
+		// Set default so the version still displays.
+		o.default = binaryVersion;
 		o.readonly = true;
 
 		s = m.section(form.GridSection, 'instance', _('Configured Instances'),
