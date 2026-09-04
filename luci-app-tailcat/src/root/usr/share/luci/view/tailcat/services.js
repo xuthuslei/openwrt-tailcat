@@ -10,7 +10,7 @@ return view.extend({
 
 		m = new form.Map('tailcat',
 			_('Local Services (serve)'),
-			_('A <em>serve</em> instance exposes something on this router to a remote tailcat client.'));
+			'A <em>serve</em> 实例在本路由器上暴露端口 / SSH / 文件接收箱，供远端 tailcat 客户端连接。');
 
 		s = m.section(form.GridSection, 'instance', _('Serve Instances'));
 		s.addremove = true;
@@ -27,14 +27,56 @@ return view.extend({
 		 uci.set('tailcat', section_id, 'role', 'serve');
 		};
 
+		// grid columns (modalonly=false, read-only display)
+		o = s.option(form.DummyValue, '_name_disp', _('Name'));
+		o.textvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'name') || section_id;
+		};
+		o.modalonly = false;
+
+		o = s.option(form.DummyValue, '_kind_disp', _('Kind'));
+		o.textvalue = function (section_id) {
+		 var kind = uci.get('tailcat', section_id, 'serve_kind') || 'ports';
+		 if (kind === 'ports') return _('Expose local ports');
+		 if (kind === 'ssh') return _('Auth-free SSH server');
+		 if (kind === 'recv') return _('File drop box (recv)');
+		 return kind;
+		};
+		o.modalonly = false;
+
+		o = s.option(form.DummyValue, '_detail_disp', _('Detail'));
+		o.textvalue = function (section_id) {
+		 var kind = uci.get('tailcat', section_id, 'serve_kind') || 'ports';
+		 if (kind === 'ports') {
+		  return uci.get('tailcat', section_id, 'serve_ports') || '—';
+		 }
+		 if (kind === 'recv') {
+		  return uci.get('tailcat', section_id, 'recv_dir') || '—';
+		 }
+		 if (kind === 'ssh') {
+		  return '—';
+		 }
+		 return '—';
+		};
+		o.modalonly = false;
+
+		o = s.option(form.DummyValue, '_en_disp', _('Enabled'));
+		o.textvalue = function (section_id) {
+		 return uci.get('tailcat', section_id, 'enabled') === '1' ? '✓' : '✗';
+		};
+		o.modalonly = false;
+
+		// modal fields (modalonly=true, editable in Add/Edit dialog)
 		o = s.option(form.Value, 'name', _('Name'));
 		o.placeholder = 'my_web';
-		o.modalonly = false;
+		o.rmempty = false;
+		o.modalonly = true;
 
 		o = s.option(form.Flag, 'enabled', _('Enabled'));
 		o.rmempty = false;
 		o.editable = true;
-		o.modalonly = false;
+		o.modalonly = true;
+		o.default = '1';
 
 		o = s.option(form.ListValue, 'serve_kind', _('Kind'));
 		o.value('ports', _('Expose local ports'));
