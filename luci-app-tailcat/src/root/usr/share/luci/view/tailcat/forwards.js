@@ -167,7 +167,12 @@ return view.extend({
 		return m.render();
 	},
 
-	onApply: function () {
-		return fs.exec('/etc/init.d/tailcat', ['restart']).then(function () { return true; });
+	// LuCI 25.x has no form.Map onApply hook: the base view's
+	// handleSave persists UCI. Override it to restart tailcat after
+	// saving so add/remove/enabled changes take effect immediately.
+	handleSave: function (ev) {
+		return this.super('handleSave', [ev]).then(function () {
+			return fs.exec('/etc/init.d/tailcat', ['restart']);
+		});
 	}
 });
