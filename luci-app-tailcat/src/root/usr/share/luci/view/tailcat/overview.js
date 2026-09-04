@@ -50,7 +50,7 @@ return view.extend({
 		s.addremove = false;
 		s.nodescriptions = true;
 		s.sortable = true;
-		s.anonymous = false;
+		s.anonymous = true;
 		s.maxcols = 4;
 
 		o = s.option(form.DummyValue, '_name', _('Name'));
