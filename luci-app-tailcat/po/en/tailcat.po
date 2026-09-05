@@ -82,6 +82,15 @@ msgstr "Expose local ports"
 msgid "Auth-free SSH server"
 msgstr "Auth-free SSH server"
 
+msgid "SSH server (public key)"
+msgstr "SSH server (public key)"
+
+msgid "SSH authorized keys"
+msgstr "SSH authorized keys"
+
+msgid "Comma-separated sources: authorized_keys file paths, literal OpenSSH public key lines, or \"user@github\" (fetched from https://github.com/user.keys). All sources are validated by tailcat at startup."
+msgstr "Comma-separated sources: authorized_keys file paths, literal OpenSSH public key lines, or \"user@github\" (fetched from https://github.com/user.keys). All sources are validated by tailcat at startup."
+
 msgid "File drop box (recv)"
 msgstr "File drop box (recv)"
 

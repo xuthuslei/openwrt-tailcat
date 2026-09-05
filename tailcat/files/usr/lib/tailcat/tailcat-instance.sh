@@ -48,6 +48,7 @@ if [ "$role" = "serve" ]; then
   serve_kind=$(uci -q get tailcat.$SECTION.serve_kind || echo "ports")
   serve_ports=$(uci -q get tailcat.$SECTION.serve_ports || echo "")
   recv_dir=$(uci -q get tailcat.$SECTION.recv_dir || echo "")
+  ssh_authorized_keys=$(uci -q get tailcat.$SECTION.ssh_authorized_keys || echo "")
 
   case "$serve_kind" in
     ports)
@@ -55,7 +56,22 @@ if [ "$role" = "serve" ]; then
       set -- "$@" serve "$serve_ports"
       ;;
     ssh)
+      # Auth-free SSH: the WireGuard tunnel itself provides identity.
       set -- "$@" serve no-auth-ssh
+      ;;
+    ssh_auth)
+      # Public-key-authenticated SSH (tailcat 0.6.0, PR #88).
+      # --ssh-authorized-keys takes a comma-separated list of:
+      #   - authorized_keys file paths
+      #   - literal OpenSSH public key lines
+      #   - "user@github" (fetched from https://github.com/user.keys)
+      # All sources are loaded and validated by tailcat at startup;
+      # an empty/invalid list causes serve to fail.
+      [ -n "$ssh_authorized_keys" ] || {
+        echo "[$SECTION] serve_kind=ssh_auth requires ssh_authorized_keys" >&2
+        exit 1
+      }
+      set -- "$@" "--ssh-authorized-keys=$ssh_authorized_keys" serve ssh
       ;;
     recv)
       # 'recv' is its own subcommand in tailcat, not a serve service name:

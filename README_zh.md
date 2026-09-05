@@ -270,8 +270,8 @@ config instance 'remote_web'
 
 - [ ] **F-EXIT-FWD**：通过 exit-node 服务器转发到任意 `IP:port` 目标（`local:remote-ip:remote-port` 形式）。上游 `tailcat forward` 自 v0.6.0 起支持；插件需在 forward 弹窗加 "Forward mode" 单选 + `remote_host` 字段，`tailcat-instance.sh` 须输出三段式映射。
 - [ ] **F-GENKEY**：通过 `tailcat genkey` 持久化密钥。当前每次 `serve` 重启都会产生新的临时地址，破坏任何带外共享的 `tc…` 值。新增 "Keys" 子页（或 Overview 区块）运行 `tailcat genkey --key=default`，并暴露每实例的 `--key=<name>`。
-- [ ] **F-UDP**：应用层 UDP 支持（上游 v0.6.0）。`serve` 可暴露 UDP 端口（DNS/SNTP/Syslog），`forward` 可转发 UDP。新增 `serve_protocol`（tcp/udp）与 forward 侧协议选择器；贯通 `tailcat-instance.sh`。
-- [ ] **F-SSH-AUTH**：`serve ssh` 公钥认证（`--ssh-authorized-keys`，上游 v0.6.0 #88）。当前 `serve_kind=ssh` 跑的是免认证变体。新增 `ssh_authorized_keys` 字段（多来源、逗号分隔），仅在 ssh 类型时条件显示。
+- [ ] **F-UDP**：应用层 UDP 支持 —— **在 tailcat 0.6.0 中受上游限制**。Go 库与 `tailcat socks` 支持 UDP，但 `serve` 和 `forward` 子命令未暴露 `--protocol=udp` 标志（forward 仅支持 TCP）。待上游提供 UDP CLI 接口后再议。
+- [x] **F-SSH-AUTH**：`serve ssh` 公钥认证（`--ssh-authorized-keys`，上游 v0.6.0 #88）。新增 `serve_kind=ssh_auth`，运行 `tailcat serve --ssh-authorized-keys=<sources> ssh`；`ssh_authorized_keys` 字段仅在 `serve_kind=ssh_auth` 时条件显示（overview.js 与 services.js）。现有 `serve_kind=ssh`（免认证）保持不变。
 - [ ] **F-SERVE-FILES**：`serve files` SFTP 服务器，支持 `--files=dir:ro|rw|wo`。新增 `serve_kind=files` + 目录 Value + 模式 ListValue（条件显示）。
 - [ ] **F-SERVE-EXIT**：`serve exit-node` 模式 —— 将本路由器作为远端客户端的出口节点运行。新增 `serve_kind=exit-node` 选项。
 

@@ -117,6 +117,7 @@ return view.extend({
 		o = s.option(form.ListValue, 'serve_kind', _('Kind'));
 		o.value('ports', _('Expose local ports'));
 		o.value('ssh', _('Auth-free SSH server'));
+		o.value('ssh_auth', _('SSH server (public key)'));
 		o.value('recv', _('File drop box (recv)'));
 		o.default = 'ports';
 		o.editable = true;
@@ -138,6 +139,13 @@ return view.extend({
 		o.datatype = 'directory';
 		o.placeholder = '/root/tailcat-inbox';
 		o.depends('serve_kind', 'recv');
+		o.modalonly = true;
+
+		o = s.option(form.Value, 'ssh_authorized_keys', _('SSH authorized keys'));
+		o.datatype = 'string';
+		o.placeholder = 'alice@github,~/.ssh/authorized_keys';
+		o.description = _('Comma-separated sources: authorized_keys file paths, literal OpenSSH public key lines, or "user@github" (fetched from https://github.com/user.keys). All sources are validated by tailcat at startup.');
+		o.depends('serve_kind', 'ssh_auth');
 		o.modalonly = true;
 
 		o = s.option(form.Flag, 'verbose', _('Verbose logs'));

@@ -270,8 +270,8 @@ Tracked against tailcat upstream `v0.6.0`. Status legend: `[x]` done · `[ ]` op
 
 - [ ] **F-EXIT-FWD**: forward through exit-node servers to arbitrary `IP:port` targets (`local:remote-ip:remote-port` form). Upstream `tailcat forward` supports this since v0.6.0; the plugin needs a "Forward mode" radio + `remote_host` field in the forward modal, and `tailcat-instance.sh` must emit the 3-part mapping.
 - [ ] **F-GENKEY**: persistent keys via `tailcat genkey`. Today every `serve` restart produces a new ephemeral address, breaking any out-of-band shared `tc…` value. Add a "Keys" sub-page (or Overview section) that runs `tailcat genkey --key=default`, and expose per-instance `--key=<name>`.
-- [ ] **F-UDP**: application-layer UDP support (upstream v0.6.0). `serve` can expose UDP ports (DNS/SNTP/Syslog), `forward` can forward UDP. Add `serve_protocol` (tcp/udp) and the forward-side protocol selector; plumb through `tailcat-instance.sh`.
-- [ ] **F-SSH-AUTH**: `serve ssh` public-key authentication (`--ssh-authorized-keys`, upstream v0.6.0 #88). Current `serve_kind=ssh` runs the auth-free variant. Add `ssh_authorized_keys` field (multi-source, comma-separated) shown conditionally on the ssh kinds.
+- [ ] **F-UDP**: application-layer UDP support — **upstream-blocked in tailcat 0.6.0**. The Go library and `tailcat socks` support UDP, but the `serve` and `forward` subcommands expose no `--protocol=udp` flag (forward is TCP-only). Revisit when upstream ships a UDP CLI surface.
+- [x] **F-SSH-AUTH**: `serve ssh` public-key authentication (`--ssh-authorized-keys`, upstream v0.6.0 #88). New `serve_kind=ssh_auth` runs `tailcat serve --ssh-authorized-keys=<sources> ssh`; the `ssh_authorized_keys` field is shown conditionally on `serve_kind=ssh_auth` in overview.js and services.js. Existing `serve_kind=ssh` (auth-free) is unchanged.
 - [ ] **F-SERVE-FILES**: `serve files` SFTP server with `--files=dir:ro|rw|wo`. New `serve_kind=files` + directory Value + mode ListValue (conditional).
 - [ ] **F-SERVE-EXIT**: `serve exit-node` mode — run this router as an exit node for all remote-client traffic. New `serve_kind=exit-node` option.
 
