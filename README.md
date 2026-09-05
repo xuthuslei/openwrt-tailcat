@@ -256,6 +256,46 @@ Build status & artifacts:
 
 This plugin deliberately reuses the LuCI layout and UCI config conventions of existing OpenWrt VPN services, so users familiar with `luci-app-wireguard` can get started at zero cost.
 
+## Roadmap / TODO
+
+Tracked against tailcat upstream `v0.6.0`. Status legend: `[x]` done · `[ ]` open.
+
+### P0 — correctness & must-fix
+
+- [x] **F-FW-FIX**: `open_firewall` now opens the WAN port for the new `local_port` path, not only the legacy `forwards` option. (commit `268dfe9`)
+- [ ] **F-MAKEFILE**: sync `luci-app-tailcat/Makefile` install paths with the on-disk view layout (`src/root/usr/share/luci/view/tailcat/*.js`). Currently `make package/luci-app-tailcat/compile` drops the views; only the CI job's hardcoded path produces a correct ipk.
+- [ ] **F-PO-CLEANUP**: prune `po/en` and `po/zh-cn` to match the strings the views actually emit (stale `Remote tailcat address` / `Port forwards (local:remote pairs)` msgids remain).
+
+### P1 — high-value feature gaps (upstream already ships the capability)
+
+- [ ] **F-EXIT-FWD**: forward through exit-node servers to arbitrary `IP:port` targets (`local:remote-ip:remote-port` form). Upstream `tailcat forward` supports this since v0.6.0; the plugin needs a "Forward mode" radio + `remote_host` field in the forward modal, and `tailcat-instance.sh` must emit the 3-part mapping.
+- [ ] **F-GENKEY**: persistent keys via `tailcat genkey`. Today every `serve` restart produces a new ephemeral address, breaking any out-of-band shared `tc…` value. Add a "Keys" sub-page (or Overview section) that runs `tailcat genkey --key=default`, and expose per-instance `--key=<name>`.
+- [ ] **F-UDP**: application-layer UDP support (upstream v0.6.0). `serve` can expose UDP ports (DNS/SNTP/Syslog), `forward` can forward UDP. Add `serve_protocol` (tcp/udp) and the forward-side protocol selector; plumb through `tailcat-instance.sh`.
+- [ ] **F-SSH-AUTH**: `serve ssh` public-key authentication (`--ssh-authorized-keys`, upstream v0.6.0 #88). Current `serve_kind=ssh` runs the auth-free variant. Add `ssh_authorized_keys` field (multi-source, comma-separated) shown conditionally on the ssh kinds.
+- [ ] **F-SERVE-FILES**: `serve files` SFTP server with `--files=dir:ro|rw|wo`. New `serve_kind=files` + directory Value + mode ListValue (conditional).
+- [ ] **F-SERVE-EXIT**: `serve exit-node` mode — run this router as an exit node for all remote-client traffic. New `serve_kind=exit-node` option.
+
+### P2 — medium value
+
+- [ ] **F-PING-STATUS**: surface `tailcat ping --timeout=5s <remote_addr>` result (latency + DERP/direct path) as a column on the Overview grid.
+- [ ] **F-ALLOW**: per-instance `--allow=<pubkeys>` client allowlist (textarea in the modal).
+- [ ] **F-PSK-OPTOUT**: expose `--psk=false` as a "Generate address without PSK" checkbox (addresses stay shorter for manual transcription).
+- [ ] **F-FULL-ADDRESS**: expose `--full-address` so serve prints a self-contained address (no DERP map fetch needed by clients).
+- [ ] **F-ERR-COLUMN**: add a "last error" column to the Overview grid; init script writes `/var/run/tailcat/<section>.err` when the instance helper exits non-zero.
+
+### P3 — robustness & maintainability
+
+- [ ] **F-RESPAWN-LIMIT**: add `procd_set_param respawn_retry 3` + backoff so a crash-looping instance doesn't spam its log file.
+- [ ] **F-STATUS-CONNECT**: either register `status.js` in the LuCI menu (as "Status", between Overview and Services) or delete it — it's currently dead code.
+- [ ] **F-OVERVIEW-SPLIT**: split `overview.js` (187 lines, mixing global settings / instance grid / per-role modal fields) into a grid module + per-role modal modules before the P1 feature additions balloon it past 500 lines.
+- [ ] **F-RELEASE-DISPATCH**: add a `workflow_dispatch` input for version number that produces a non-prerelease tagged release; today every push to `main` only creates a `prerelease: true` snapshot.
+- [ ] **F-SHA256-VERIFY**: verify a published sha256 checksum when CI downloads the prebuilt tailcat binary (defense against a tampered upstream release).
+
+### Deferred (post-0.2)
+
+- SOCKS5 proxy (`tailcat socks`) — overlaps existing `forward`; revisit after exit-node lands.
+- `resolve` / `ls` / `cp` integration — client-side subcommands, not router-side LuCI surface.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).

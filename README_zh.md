@@ -256,6 +256,46 @@ config instance 'remote_web'
 
 本插件刻意复用了 OpenWrt 已有 VPN 服务的 LuCI 布局与 UCI 配置惯例，让熟悉 `luci-app-wireguard` 的用户可以零成本上手。
 
+## 路线图 / TODO
+
+对照 tailcat 上游 `v0.6.0` 跟踪。状态图例：`[x]` 已完成 · `[ ]` 待办。
+
+### P0 — 正确性 / 必修
+
+- [x] **F-FW-FIX**：`open_firewall` 现在为新 `local_port` 路径开 WAN 端口，不再只认 legacy `forwards` 选项。（提交 `268dfe9`）
+- [ ] **F-MAKEFILE**：同步 `luci-app-tailcat/Makefile` 安装路径与磁盘上的视图布局（`src/root/usr/share/luci/view/tailcat/*.js`）。当前 `make package/luci-app-tailcat/compile` 会丢掉视图，只有 CI 作业里硬编码的路径才能产出正确的 ipk。
+- [ ] **F-PO-CLEANUP**：清理 `po/en` 与 `po/zh-cn`，使其与视图实际发出的字符串对齐（残留的 `Remote tailcat address` / `Port forwards (local:remote pairs)` msgid 已不再使用）。
+
+### P1 — 高价值功能缺口（上游已提供能力）
+
+- [ ] **F-EXIT-FWD**：通过 exit-node 服务器转发到任意 `IP:port` 目标（`local:remote-ip:remote-port` 形式）。上游 `tailcat forward` 自 v0.6.0 起支持；插件需在 forward 弹窗加 "Forward mode" 单选 + `remote_host` 字段，`tailcat-instance.sh` 须输出三段式映射。
+- [ ] **F-GENKEY**：通过 `tailcat genkey` 持久化密钥。当前每次 `serve` 重启都会产生新的临时地址，破坏任何带外共享的 `tc…` 值。新增 "Keys" 子页（或 Overview 区块）运行 `tailcat genkey --key=default`，并暴露每实例的 `--key=<name>`。
+- [ ] **F-UDP**：应用层 UDP 支持（上游 v0.6.0）。`serve` 可暴露 UDP 端口（DNS/SNTP/Syslog），`forward` 可转发 UDP。新增 `serve_protocol`（tcp/udp）与 forward 侧协议选择器；贯通 `tailcat-instance.sh`。
+- [ ] **F-SSH-AUTH**：`serve ssh` 公钥认证（`--ssh-authorized-keys`，上游 v0.6.0 #88）。当前 `serve_kind=ssh` 跑的是免认证变体。新增 `ssh_authorized_keys` 字段（多来源、逗号分隔），仅在 ssh 类型时条件显示。
+- [ ] **F-SERVE-FILES**：`serve files` SFTP 服务器，支持 `--files=dir:ro|rw|wo`。新增 `serve_kind=files` + 目录 Value + 模式 ListValue（条件显示）。
+- [ ] **F-SERVE-EXIT**：`serve exit-node` 模式 —— 将本路由器作为远端客户端的出口节点运行。新增 `serve_kind=exit-node` 选项。
+
+### P2 — 中等价值
+
+- [ ] **F-PING-STATUS**：将 `tailcat ping --timeout=5s <remote_addr>` 结果（延迟 + DERP/direct 路径）作为一列显示在 Overview 网格。
+- [ ] **F-ALLOW**：每实例 `--allow=<pubkeys>` 客户端白名单（弹窗内 textarea）。
+- [ ] **F-PSK-OPTOUT**：暴露 `--psk=false` 为 "生成不带 PSK 的地址" 复选框（地址更短，便于手工抄写）。
+- [ ] **F-FULL-ADDRESS**：暴露 `--full-address`，让 serve 打印自包含地址（客户端无需 DERP map 拉取）。
+- [ ] **F-ERR-COLUMN**：在 Overview 网格加 "last error" 列；init 脚本在实例 helper 非零退出时写 `/var/run/tailcat/<section>.err`。
+
+### P3 — 健壮性 / 可维护性
+
+- [ ] **F-RESPAWN-LIMIT**：增加 `procd_set_param respawn_retry 3` + 退避，避免崩溃循环的实例刷爆日志文件。
+- [ ] **F-STATUS-CONNECT**：要么在 LuCI 菜单注册 `status.js`（作为 "Status"，位于 Overview 与 Services 之间），要么删除它 —— 当前是死代码。
+- [ ] **F-OVERVIEW-SPLIT**：在 P1 功能加入导致 `overview.js`（187 行，混合全局设置 / 实例网格 / 每角色弹窗字段）膨胀到 500+ 行之前，将其拆分为网格模块 + 每角色弹窗模块。
+- [ ] **F-RELEASE-DISPATCH**：增加 `workflow_dispatch` 版本号输入，产出非预发布的打 tag release；目前每次推送到 `main` 只产出 `prerelease: true` 快照。
+- [ ] **F-SHA256-VERIFY**：CI 下载预编译 tailcat 二进制时校验已发布的 sha256（防篡改上游 release）。
+
+### 延后（0.2 之后）
+
+- SOCKS5 代理（`tailcat socks`）—— 与现有 `forward` 重叠；exit-node 落地后再议。
+- `resolve` / `ls` / `cp` 集成 —— 客户端子命令，不属于路由器侧 LuCI 范畴。
+
 ## 许可证
 
 MIT，详见 [LICENSE](LICENSE)。
