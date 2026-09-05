@@ -24,7 +24,7 @@ permissions:
   contents: write
 
 env:
-  TAILCAT_VERSION: "0.5.0"
+  TAILCAT_VERSION: "0.6.0"
 
 jobs:
   build-tailcat:

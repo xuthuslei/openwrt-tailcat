@@ -72,9 +72,9 @@ openwrt-tailcat/
 
 | 架构（opkg arch） | ipk 文件 | 典型设备 |
 |-------------------|----------|----------|
-| `x86_64` | `tailcat_0.5.0-1_x86_64.ipk` | x86 软路由 |
-| `aarch64_cortexa53` | `tailcat_0.5.0-1_aarch64_cortexa53.ipk` | 树莓派 3、部分 ARM 路由 |
-| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.5.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx、IPQ40xx 等 |
+| `x86_64` | `tailcat_0.6.0-1_x86_64.ipk` | x86 软路由 |
+| `aarch64_cortexa53` | `tailcat_0.6.0-1_aarch64_cortexa53.ipk` | 树莓派 3、部分 ARM 路由 |
+| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.6.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx、IPQ40xx 等 |
 | `all` | `luci-app-tailcat_0.1.0-1_all.ipk` | LuCI 界面，所有架构通用 |
 
 安装：

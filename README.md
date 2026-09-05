@@ -72,9 +72,9 @@ Download the file matching your router architecture:
 
 | Architecture (opkg arch) | ipk file | Typical device |
 |--------------------------|----------|----------------|
-| `x86_64` | `tailcat_0.5.0-1_x86_64.ipk` | x86 software router |
-| `aarch64_cortexa53` | `tailcat_0.5.0-1_aarch64_cortexa53.ipk` | Raspberry Pi 3, some ARM routers |
-| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.5.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx, IPQ40xx, etc. |
+| `x86_64` | `tailcat_0.6.0-1_x86_64.ipk` | x86 software router |
+| `aarch64_cortexa53` | `tailcat_0.6.0-1_aarch64_cortexa53.ipk` | Raspberry Pi 3, some ARM routers |
+| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.6.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx, IPQ40xx, etc. |
 | `all` | `luci-app-tailcat_0.1.0-1_all.ipk` | LuCI interface, universal for all archs |
 
 Install:

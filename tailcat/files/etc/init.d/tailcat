@@ -144,12 +144,21 @@ start_instance() {
 		local open_fw
 		config_get open_fw "$section" open_firewall 0
 		if [ "$open_fw" = "1" ]; then
-			local forwards p
-			config_get forwards "$section" forwards ""
+			# Open the WAN-side firewall for every local port this
+			# forward instance listens on. Two sources of local ports:
+			#   - new:  option local_port (single port)
+			#   - legacy: option forwards (space-separated [local:]remote)
+			local local_port forwards p lport
+			config_get local_port "$section" local_port ""
+			config_get forwards   "$section" forwards   ""
+
+			# New path takes precedence; legacy path is a fallback.
+			if [ -n "$local_port" ]; then
+				fw_add_rule "$section" "$local_port" tcp
+			fi
 			for p in $forwards; do
-				# mapping is [local:]remote; the local port
-				# is what we need to open.
-				local lport="${p%%:*}"
+				# mapping is [local:]remote; the local port is what we open.
+				lport="${p%%:*}"
 				[ -n "$lport" ] && fw_add_rule "$section" "$lport" tcp
 			done
 			fw_reload
