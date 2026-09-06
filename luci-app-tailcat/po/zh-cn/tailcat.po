@@ -100,6 +100,15 @@ msgstr "免认证 SSH 服务器"
 msgid "SSH server (public key)"
 msgstr "SSH 服务器（公钥认证）"
 
+msgid "Exit node"
+msgstr "出口节点"
+
+msgid "Allowed client public keys"
+msgstr "允许的客户端公钥"
+
+msgid "Comma-separated client node public keys allowed to reach this service. Without this, any peer that knows the tailcat address can connect. Obtain client keys with \"tailcat printpub\" on each client."
+msgstr "逗号分隔的客户端节点公钥，允许其访问本服务。未设置时，任何知道 tailcat 地址的对等方均可连接。各客户端可用 \"tailcat printpub\" 获取自己的公钥。"
+
 msgid "SSH authorized keys"
 msgstr "SSH 授权公钥"
 

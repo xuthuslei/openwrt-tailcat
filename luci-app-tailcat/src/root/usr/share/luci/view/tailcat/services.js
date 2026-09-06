@@ -118,6 +118,7 @@ return view.extend({
 		o.value('ports', _('Expose local ports'));
 		o.value('ssh', _('Auth-free SSH server'));
 		o.value('ssh_auth', _('SSH server (public key)'));
+		o.value('exit_node', _('Exit node'));
 		o.value('recv', _('File drop box (recv)'));
 		o.default = 'ports';
 		o.editable = true;
@@ -146,6 +147,14 @@ return view.extend({
 		o.placeholder = 'alice@github,~/.ssh/authorized_keys';
 		o.description = _('Comma-separated sources: authorized_keys file paths, literal OpenSSH public key lines, or "user@github" (fetched from https://github.com/user.keys). All sources are validated by tailcat at startup.');
 		o.depends('serve_kind', 'ssh_auth');
+		o.modalonly = true;
+
+		// Tunnel-layer client allowlist (applies to ALL serve kinds).
+		o = s.option(form.Value, 'allowed', _('Allowed client public keys'));
+		o.datatype = 'string';
+		o.placeholder = 'nodekey:abc123…,nodekey:def456…';
+		o.description = _('Comma-separated client node public keys allowed to reach this service. Without this, any peer that knows the tailcat address can connect. Obtain client keys with "tailcat printpub" on each client.');
+		o.depends('role', 'serve');
 		o.modalonly = true;
 
 		// DNS publishing (serve instances, opt-in).

@@ -97,6 +97,15 @@ msgstr "Auth-free SSH server"
 msgid "SSH server (public key)"
 msgstr "SSH server (public key)"
 
+msgid "Exit node"
+msgstr "Exit node"
+
+msgid "Allowed client public keys"
+msgstr "Allowed client public keys"
+
+msgid "Comma-separated client node public keys allowed to reach this service. Without this, any peer that knows the tailcat address can connect. Obtain client keys with \"tailcat printpub\" on each client."
+msgstr "Comma-separated client node public keys allowed to reach this service. Without this, any peer that knows the tailcat address can connect. Obtain client keys with \"tailcat printpub\" on each client."
+
 msgid "SSH authorized keys"
 msgstr "SSH authorized keys"
 

@@ -50,6 +50,14 @@ if [ "$role" = "serve" ]; then
   serve_ports=$(uci -q get tailcat.$SECTION.serve_ports || echo "")
   recv_dir=$(uci -q get tailcat.$SECTION.recv_dir || echo "")
   ssh_authorized_keys=$(uci -q get tailcat.$SECTION.ssh_authorized_keys || echo "")
+  allowed=$(uci -q get tailcat.$SECTION.allowed || echo "")
+
+  # --allow is a tunnel-layer client allowlist that applies to ALL
+  # serve kinds (ports, ssh, recv, files, exit-node). Without it,
+  # any peer that knows the tailcat address can reach the service.
+  # Format: comma-separated nodekey:… values (client public keys,
+  # obtained via "tailcat printpub" on each client).
+  [ -n "$allowed" ] && set -- "$@" "--allow=$allowed"
 
   case "$serve_kind" in
     ports)
@@ -73,6 +81,12 @@ if [ "$role" = "serve" ]; then
         exit 1
       }
       set -- "$@" "--ssh-authorized-keys=$ssh_authorized_keys" serve ssh
+      ;;
+    exit_node)
+      # serve exit-node: this router becomes an exit node for all
+      # remote-client traffic. Almost always should be paired with
+      # --allow to restrict which clients may use the exit.
+      set -- "$@" serve exit-node
       ;;
     recv)
       # 'recv' is its own subcommand in tailcat, not a serve service name:
