@@ -271,16 +271,16 @@ config instance 'remote_web'
 - [ ] **F-EXIT-FWD**：通过 exit-node 服务器转发到任意 `IP:port` 目标（`local:remote-ip:remote-port` 形式）。上游 `tailcat forward` 自 v0.6.0 起支持；插件需在 forward 弹窗加 "Forward mode" 单选 + `remote_host` 字段，`tailcat-instance.sh` 须输出三段式映射。
 - [ ] **F-GENKEY**：通过 `tailcat genkey` 持久化密钥。当前每次 `serve` 重启都会产生新的临时地址，破坏任何带外共享的 `tc…` 值。新增 "Keys" 子页（或 Overview 区块）运行 `tailcat genkey --key=default`，并暴露每实例的 `--key=<name>`。
 - [ ] **F-UDP**：应用层 UDP 支持 —— **在 tailcat 0.6.0 中受上游限制**。Go 库与 `tailcat socks` 支持 UDP，但 `serve` 和 `forward` 子命令未暴露 `--protocol=udp` 标志（forward 仅支持 TCP）。待上游提供 UDP CLI 接口后再议。
-- [x] **F-SSH-AUTH**：`serve ssh` 公钥认证（`--ssh-authorized-keys`，上游 v0.6.0 #88）。新增 `serve_kind=ssh_auth`，运行 `tailcat serve --ssh-authorized-keys=<sources> ssh`；`ssh_authorized_keys` 字段仅在 `serve_kind=ssh_auth` 时条件显示（overview.js 与 services.js）。现有 `serve_kind=ssh`（免认证）保持不变。
-- [x] **F-DNS-PUBLISH**：将 serve 实例的 tailcat 地址发布到 Cloudflare TXT 记录。serve 实例新增 `dns_publish` 开关 + `dns_name` 字段（overview.js + services.js）；概览页配置 `general.cf_api_token`/`cf_zone_id` 凭据。`tailcat-dns-publish.sh` 在 FQDN 写入 `tailcat=<addr>`（裸值、不带引号）；init.d 在地址文件生成后发布，停止/重载时取消发布。发布轮询窗口从 10s 延长到 60s，因为 tailcat 仅在密钥加载 + DERP 引导完成后才写 `TAILCAT_ADDR_FILE`（冷启动 15–25s）。
+- [x] **F-SSH-AUTH**：`serve ssh` 公钥认证（`--ssh-authorized-keys`，上游 v0.6.0 #88）。新增 `serve_kind=ssh_auth`，运行 `tailcat serve --ssh-authorized-keys=<sources> ssh`；`ssh_authorized_keys` 字段仅在 `serve_kind=ssh_auth` 时条件显示（overview.js 与 services.js）。现有 `serve_kind=ssh`（免认证）保持不变。多选 SSH 公钥来源已添加：`ssh_use_dropbear_keys`（Flag，默认开，包含 `/etc/dropbear/authorized_keys`）、`ssh_github_users`（Value，如 `alice,bob`）、`ssh_extra_key_files`（Value，额外文件路径）。三个来源由 `tailcat-instance.sh` 组装为 `--ssh-authorized-keys` CSV。
+- [x] **F-DNS-PUBLISH**：将 serve 实例的 tailcat 地址发布到 Cloudflare TXT 记录。serve 实例新增 `dns_publish` 开关 + `dns_name` 字段（overview.js + services.js）；概览页配置 `general.cf_api_token`/`cf_zone_id` 凭据。`tailcat-dns-publish.sh` 在 FQDN 写入 `tailcat=<addr>`（裸值、不带引号）；init.d 在地址文件生成后发布，停止/重载时取消发布。发布轮询窗口从 10s 延长到 60s，因为 tailcat 仅在密钥加载 + DERP 引导完成后才写 `TAILCAT_ADDR_FILE`（冷启动 15–25s）。增加原子读取 + `tc*` 校验，因为 tailcat 持续重写 addr 文件（BusyBox `tr -d '[:space:]'` 会剥离非空白字符，损坏地址）。TXT 内容按 Cloudflare 要求用字面双引号包裹。
 - [x] **F-DNS-RESOLVE**：连接 DNS 发布的远端服务器。`server` 段的 `remote_addr` 现可填域名；`tailcat-instance.sh` 检测非 `tc...` 值并通过 `tailcat-dns-resolve.sh` 解析（dig → nslookup → host，剥离 `tailcat=` 前缀）。
 - [ ] **F-SERVE-FILES**：`serve files` SFTP 服务器，支持 `--files=dir:ro|rw|wo`。新增 `serve_kind=files` + 目录 Value + 模式 ListValue（条件显示）。
-- [ ] **F-SERVE-EXIT**：`serve exit-node` 模式 —— 将本路由器作为远端客户端的出口节点运行。新增 `serve_kind=exit-node` 选项。
+- [x] **F-SERVE-EXIT**：`serve exit-node` 模式 —— 将本路由器作为远端客户端的出口节点运行。新增 `serve_kind=exit_node` 选项（Kind 下拉，overview.js + services.js）；`tailcat-instance.sh` 输出 `serve exit-node`。
 
 ### P2 — 中等价值
 
 - [ ] **F-PING-STATUS**：将 `tailcat ping --timeout=5s <remote_addr>` 结果（延迟 + DERP/direct 路径）作为一列显示在 Overview 网格。
-- [ ] **F-ALLOW**：每实例 `--allow=<pubkeys>` 客户端白名单（弹窗内 textarea）。
+- [x] **F-ALLOW**：每实例 `--allow=<pubkeys>` 客户端白名单（弹窗内 textarea）。`tailcat-instance.sh` 为 serve 类型 `ports`/`ssh`/`ssh_auth`/`exit_node` 前置 `--allow=<csv>`（不含 `recv`，它独立子命令、拒绝该标志）。未设置时，任何知道 tailcat 地址的对等方均可连接。
 - [ ] **F-PSK-OPTOUT**：暴露 `--psk=false` 为 "生成不带 PSK 的地址" 复选框（地址更短，便于手工抄写）。
 - [ ] **F-FULL-ADDRESS**：暴露 `--full-address`，让 serve 打印自包含地址（客户端无需 DERP map 拉取）。
 - [ ] **F-ERR-COLUMN**：在 Overview 网格加 "last error" 列；init 脚本在实例 helper 非零退出时写 `/var/run/tailcat/<section>.err`。
