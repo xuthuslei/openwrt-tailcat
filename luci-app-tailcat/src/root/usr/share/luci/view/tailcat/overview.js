@@ -7,45 +7,48 @@ var callServiceList = rpc.declare({
 });
 
 return view.extend({
-	load: function () {
-		return Promise.all([
-			uci.load('tailcat'),
-			L.resolveDefault(callServiceList('tailcat'), {}),
-			fs.exec('/usr/bin/tailcat', ['--version']).then(function (r) {
-			 return (r && r.stdout) ? r.stdout.trim() : 'n/a';
-			}).catch(function () { return 'n/a'; }),
-			// Read DERP relay hostnames that init.d wrote to
-			// /var/run/tailcat/<section>.derp. One fs.read per instance,
-			// resolved in parallel; returns a map: section_id → host.
-			(function () {
-				var secs = uci.sections('tailcat', 'instance') || [];
-				var tasks = [];
-				for (var j = 0; j < secs.length; j++) {
-					(function (sec) {
-						var secId = sec['.name'];
-						tasks.push(
-							fs.read('/var/run/tailcat/' + secId + '.derp')
-								.then(function (content) {
-									var h = (content || '').trim();
-									return [secId, h ? h : 'auto'];
-								})
-								.catch(function () { return [secId, 'auto']; })
-						);
-					})(secs[j]);
-				}
-				return Promise.all(tasks).then(function (pairs) {
-					var derpMap = {};
-					for (var p = 0; p < pairs.length; p++) { derpMap[pairs[p][0]] = pairs[p][1]; }
-					return derpMap;
-				});
-			})()
-		]);
-	},
+ load: function () {
+  // Chain DERP resolution after uci.load resolves, so
+  // uci.sections('tailcat', 'instance') sees real data.
+  var derpPromise = uci.load('tailcat').then(function () {
+   var secs = uci.sections('tailcat', 'instance') || [];
+   var tasks = [];
+   for (var j = 0; j < secs.length; j++) {
+    (function (sec) {
+     var secId = sec['.name'];
+     tasks.push(
+      fs.read('/var/run/tailcat/' + secId + '.derp')
+       .then(function (content) {
+        var h = (content || '').trim();
+        return [secId, h ? h : 'auto'];
+       })
+       .catch(function () { return [secId, 'auto']; })
+     );
+    })(secs[j]);
+   }
+   return Promise.all(tasks).then(function (pairs) {
+    var derpMap = {};
+    for (var p = 0; p < pairs.length; p++) { derpMap[pairs[p][0]] = pairs[p][1]; }
+    return derpMap;
+   });
+  });
+
+  return Promise.all([
+   uci.load('tailcat'),
+   L.resolveDefault(callServiceList('tailcat'), {}),
+   fs.exec('/usr/bin/tailcat', ['--version']).then(function (r) {
+    return (r && r.stdout) ? r.stdout.trim() : 'n/a';
+   }).catch(function () { return 'n/a'; }),
+   derpPromise
+  ]);
+ },
 
 	render: function (data) {
 		var instances = (data[1] && data[1].tailcat && data[1].tailcat.instances) ? data[1].tailcat.instances : {};
 		var binaryVersion = data[2];
 		var derpMap = data[3] || {};
+		window.__derpMap = derpMap;
+		window.__dataLen = data.length;
 
 		var m, s, o;
 
