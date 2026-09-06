@@ -32,6 +32,17 @@ derp_map_inst=$(uci -q get tailcat.$SECTION.derp_map || echo "")
 key_name=$(uci -q get tailcat.$SECTION.key_name || echo "")
 [ -n "$key_name" ] && set -- "$@" "--key=$key_name"
 
+# Per-instance DERP relay selection (serve role).
+#   derp_region: region ID/code/name (e.g. "nyc", "303") or a custom
+#                DERP server hostname. "auto" = pick by latency.
+#   derp_fixed:  if "1", bake the chosen region into the key/address
+#                so restarts and clients rendezvous in the same place.
+# These only matter when generating a key; a saved key already has its
+# region baked in. We pass them through to tailcat serve via the
+# --key flag's region sub-option by regenerating the key when needed.
+derp_region=$(uci -q get tailcat.$SECTION.derp_region || echo "")
+derp_fixed=$(uci -q get tailcat.$SECTION.derp_fixed || echo "0")
+
 [ "$enabled" = "1" ] || { echo "[$SECTION] disabled" >&2; exit 1; }
 [ "$role" = "serve" ] || [ "$role" = "forward" ] || {
   echo "[$SECTION] unknown role '$role'" >&2; exit 1
@@ -56,6 +67,22 @@ if [ "$role" = "serve" ]; then
   serve_ports=$(uci -q get tailcat.$SECTION.serve_ports || echo "")
   recv_dir=$(uci -q get tailcat.$SECTION.recv_dir || echo "")
   allowed=$(uci -q get tailcat.$SECTION.allowed || echo "")
+
+  # Per-instance DERP relay selection. tailcat bakes the DERP region
+  # into the server key at genkey time. So if the user set a region
+  # or asked for a fixed region, we (re)generate the named key with
+  # those options now. Without this, a saved key's region wins and
+  # the per-instance override is ignored.
+  if [ -n "$derp_region" ] || [ "$derp_fixed" = "1" ]; then
+    gen_args="--key=${key_name:-default} --force"
+    [ -n "$derp_region" ] && gen_args="$gen_args --region=$derp_region"
+    [ "$derp_fixed" = "1" ] && gen_args="$gen_args --fixed-region"
+    # Use the same DERP map the instance will serve with.
+    [ -n "$derp_map" ] && gen_args="$gen_args --derpmap-url=$derp_map"
+    "$TAILCAT_BIN" genkey $gen_args >/dev/null 2>&1 || true
+    # Now ensure serve loads this key.
+    [ -n "$key_name" ] || { key_name="default"; set -- "$@" "--key=$key_name"; }
+  fi
 
   # --allow is a tunnel-layer client allowlist. It applies to the
   # 'serve' subcommand (ports/ssh/ssh_auth/exit_node) but NOT to

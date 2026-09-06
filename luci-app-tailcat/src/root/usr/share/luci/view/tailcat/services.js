@@ -211,6 +211,18 @@ return view.extend({
 		o.description = _('Name of a persistent tailcat key (see Keys section). "default" is loaded automatically. Empty = ephemeral key (new address each restart).');
 		o.modalonly = true;
 
+		o = s.option(form.Value, 'derp_region', _('DERP relay region'));
+		o.datatype = 'string';
+		o.placeholder = 'auto';
+		o.description = _('DERP relay region for this serve instance: region ID (301), code (nyc), name substring, or a custom DERP server hostname. "auto" = pick by latency at each startup. Only applies when a key is (re)generated.');
+		o.modalonly = true;
+
+		o = s.option(form.Flag, 'derp_fixed', _('Fixed DERP region'));
+		o.rmempty = false;
+		o.default = '0';
+		o.description = _('Bake the chosen DERP region into the key and tailcat address, so server restarts and clients rendezvous in the same place. Recommended for DNS-published services.');
+		o.modalonly = true;
+
 		o = s.option(form.Flag, 'verbose', _('Verbose logs'));
 		o.rmempty = false;
 		o.modalonly = true;
