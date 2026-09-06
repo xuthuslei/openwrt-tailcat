@@ -16,6 +16,7 @@ name: Build ipk
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -249,7 +250,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  release:
+  release-snapshot:
     name: Attach ipk to snapshot release
     needs: [build-tailcat, build-luci]
     runs-on: ubuntu-22.04
@@ -275,3 +276,24 @@ jobs:
             repackaged as OpenWrt ipk.
           files: all-artifacts/*.ipk
           prerelease: true
+
+  release-tag:
+    name: Attach ipk to tag release
+    needs: [build-tailcat, build-luci]
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+          merge-multiple: true
+
+      - name: Show collected ipk
+        run: ls -la all-artifacts/
+
+      - name: Attach ipk to existing release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: all-artifacts/*.ipk
