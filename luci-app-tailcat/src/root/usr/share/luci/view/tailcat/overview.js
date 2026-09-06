@@ -18,7 +18,7 @@ return view.extend({
 	},
 
 	render: function (data) {
-		var instances = data[1] && data[1].tailcat ? data[1].tailcat.instances : {};
+		var instances = (data[1] && data[1].tailcat && data[1].tailcat.instances) ? data[1].tailcat.instances : {};
 		var binaryVersion = data[2];
 
 		var m, s, o;
