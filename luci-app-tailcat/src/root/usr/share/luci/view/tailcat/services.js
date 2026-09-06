@@ -119,6 +119,7 @@ return view.extend({
 		o.value('ssh', _('Auth-free SSH server'));
 		o.value('ssh_auth', _('SSH server (public key)'));
 		o.value('exit_node', _('Exit node'));
+		o.value('files', _('SFTP file server'));
 		o.value('recv', _('File drop box (recv)'));
 		o.default = 'ports';
 		o.editable = true;
@@ -140,6 +141,21 @@ return view.extend({
 		o.datatype = 'directory';
 		o.placeholder = '/root/tailcat-inbox';
 		o.depends('serve_kind', 'recv');
+		o.modalonly = true;
+
+		o = s.option(form.Value, 'files_dir', _('Files directory'));
+		o.datatype = 'directory';
+		o.placeholder = '/pub';
+		o.depends('serve_kind', 'files');
+		o.modalonly = true;
+
+		o = s.option(form.ListValue, 'files_mode', _('Files mode'));
+		o.value('ro', _('Read-only (default)'));
+		o.value('rw', _('Read-write'));
+		o.value('wo', _('Write-only (flat)'));
+		o.value('wo+', _('Write-only (recursive)'));
+		o.default = 'ro';
+		o.depends('serve_kind', 'files');
 		o.modalonly = true;
 
 		// SSH key sources (multi-select, ssh_auth only).
@@ -187,6 +203,12 @@ return view.extend({
 		o.placeholder = 'cloudcone-cc.example.com';
 		o.description = _('The FQDN whose TXT record will carry "tailcat=<addr>". Clients can then connect by name: tailcat ssh <dns_name>.');
 		o.depends('dns_publish', '1');
+		o.modalonly = true;
+
+		o = s.option(form.Value, 'key_name', _('Persistent key name'));
+		o.datatype = 'string';
+		o.placeholder = 'default';
+		o.description = _('Name of a persistent tailcat key (see Keys section). "default" is loaded automatically. Empty = ephemeral key (new address each restart).');
 		o.modalonly = true;
 
 		o = s.option(form.Flag, 'verbose', _('Verbose logs'));

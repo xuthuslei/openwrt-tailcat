@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# uci-defaults script: generate the default tailcat server key on
+# first install, so serve instances get a stable address across
+# restarts (instead of a new ephemeral address each time).
+#
+# The key name "default" is magic: tailcat serve loads it
+# automatically once it exists. We use --force in case the user
+# re-runs this script.
+#
+# This is idempotent and safe to run on every boot — genkey --force
+# overwrites the key, but we guard with a stamp file so it only runs
+# once per install.
+
+KEY_DIR="/root/.config/tailcat/keys"
+STAMP="/etc/tailcat/.keys-initialized"
+
+# Already initialized on this install — skip.
+[ -f "$STAMP" ] && exit 0
+
+# Generate the default server key.
+mkdir -p "$KEY_DIR"
+/usr/bin/tailcat genkey --key=default --force >/dev/null 2>&1
+
+# Mark as initialized.
+mkdir -p "$(dirname "$STAMP")"
+: > "$STAMP"
+
+exit 0

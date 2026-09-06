@@ -41,27 +41,23 @@ compile:
 # script that grants the luci-app-tailcat ACL to the admin group.
 
 define Package/$(PKG_NAME)/install
-	# Views (JavaScript modules)
+	# Views (JavaScript modules) — actual source layout is
+	# src/root/usr/share/luci/view/tailcat/*.js
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/tailcat
-	$(INSTALL_DATA) ./src/htdocs/luci-static/resources/view/tailcat/*.js \
+	$(INSTALL_DATA) ./src/root/usr/share/luci/view/tailcat/*.js \
 		$(1)/www/luci-static/resources/view/tailcat/
-	# i18n strings (base + translations)
-	$(INSTALL_DIR) $(1)/www/luci-static/resources
-	$(INSTALL_DATA) ./src/htdocs/luci-static/resources/*.po \
-		$(1)/www/luci-static/resources/ 2>/dev/null || true
+	# Menu registration
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DATA) ./src/usr/share/luci/menu.d/*.json \
 		$(1)/usr/share/luci/menu.d/
+	# rpcd ACL
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./src/usr/share/rpcd/acl.d/*.json \
 		$(1)/usr/share/rpcd/acl.d/
-	$(INSTALL_DIR) $(1)/usr/share/luci/i18n
-	$(INSTALL_DATA) ./po/en/*.po $(1)/usr/share/luci/i18n/ 2>/dev/null || true
-	$(INSTALL_DATA) ./po/zh-cn/*.po $(1)/usr/share/luci/i18n/ 2>/dev/null || true
-	# uci-defaults: enable service menu + default ACL
+	# uci-defaults (enable service menu + default ACL)
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./src/root/etc/uci-defaults/* \
-		$(1)/etc/uci-defaults/
+		$(1)/etc/uci-defaults/ 2>/dev/null || true
 endef
 
 define Package/$(PKG_NAME)/postinst

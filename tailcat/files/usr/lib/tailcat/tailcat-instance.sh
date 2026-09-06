@@ -26,6 +26,12 @@ derp_map=$(uci -q get tailcat.general.derp_map || echo "")
 derp_map_inst=$(uci -q get tailcat.$SECTION.derp_map || echo "")
 [ -n "$derp_map_inst" ] && derp_map="$derp_map_inst"
 
+# Per-instance persistent key name. If set, prepend --key=<name>
+# so tailcat loads a saved key (stable address across restarts)
+# instead of generating an ephemeral one each time.
+key_name=$(uci -q get tailcat.$SECTION.key_name || echo "")
+[ -n "$key_name" ] && set -- "$@" "--key=$key_name"
+
 [ "$enabled" = "1" ] || { echo "[$SECTION] disabled" >&2; exit 1; }
 [ "$role" = "serve" ] || [ "$role" = "forward" ] || {
   echo "[$SECTION] unknown role '$role'" >&2; exit 1
@@ -100,6 +106,14 @@ if [ "$role" = "serve" ]; then
       # --allow to restrict which clients may use the exit.
       set -- "$@" serve exit-node
       ;;
+    files)
+      # SFTP file server: --files=<dir>:<mode> (ro|rw|wo|wo+).
+      # Requires files_dir; files_mode defaults to 'ro'.
+      files_dir=$(uci -q get tailcat.$SECTION.files_dir || echo "")
+      files_mode=$(uci -q get tailcat.$SECTION.files_mode || echo "ro")
+      [ -n "$files_dir" ] || { echo "[$SECTION] serve_kind=files but files_dir empty" >&2; exit 1; }
+      set -- "$@" serve "--files=$files_dir:$files_mode" files
+      ;;
     recv)
       # 'recv' is its own subcommand in tailcat, not a serve service name:
       #   tailcat recv ~/inbox
@@ -164,11 +178,22 @@ elif [ "$role" = "forward" ]; then
   [ -n "$remote_addr" ] || { echo "[$SECTION] forward requires a server with remote_addr" >&2; exit 1; }
 
   # Build the forwards arg: each instance forwards one local:remote pair.
-  # Legacy 'forwards' option (space-separated local:remote pairs) still
-  # works; new 'local_port'+'remote_port' pair takes precedence.
+  # Three forms:
+  #   1. local_port + remote_port (no remote_host): <local>:<remote>
+  #   2. local_port + remote_port + remote_host (exit-node fwd):
+  #      <local>:<remote_host>:<remote>
+  #   3. Legacy 'forwards' option (space-separated local:remote pairs).
   fwd_arg=""
   if [ -n "$local_port" ] && [ -n "$remote_port" ]; then
-    fwd_arg="$local_port:$remote_port"
+    remote_host=$(uci -q get tailcat.$SECTION.remote_host || echo "")
+    if [ -n "$remote_host" ]; then
+      # Exit-node forwarding: forward through the tailcat server
+      # (which must be running as an exit node) to an arbitrary
+      # remote IP:port behind it.
+      fwd_arg="$local_port:$remote_host:$remote_port"
+    else
+      fwd_arg="$local_port:$remote_port"
+    fi
   elif [ -n "$forwards" ]; then
     fwd_arg=$forwards
   else
