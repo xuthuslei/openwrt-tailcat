@@ -92,7 +92,11 @@ jobs:
           mkdir -p "$PKGROOT/usr/lib/tailcat"
           cp tailcat/files/usr/lib/tailcat/tailcat-instance.sh \
              "$PKGROOT/usr/lib/tailcat/tailcat-instance.sh"
-          chmod 0755 "$PKGROOT/usr/lib/tailcat/tailcat-instance.sh"
+          cp tailcat/files/usr/lib/tailcat/tailcat-dns-publish.sh \
+             "$PKGROOT/usr/lib/tailcat/tailcat-dns-publish.sh"
+          cp tailcat/files/usr/lib/tailcat/tailcat-dns-resolve.sh \
+             "$PKGROOT/usr/lib/tailcat/tailcat-dns-resolve.sh"
+          chmod 0755 "$PKGROOT/usr/lib/tailcat"/*.sh
 
           # CONTROL directory with metadata for ipkg-build
           mkdir -p "$PKGROOT/CONTROL"
