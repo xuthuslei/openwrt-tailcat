@@ -23,38 +23,39 @@ return view.extend({
 				var secs = uci.sections('tailcat', 'instance') || [];
 				var tasks = [];
 				for (var j = 0; j < secs.length; j++) {
-					var sec = secs[j];
-					if (uci.get('tailcat', sec['.name'], 'role') !== 'forward') { continue; }
-					var serverName = uci.get('tailcat', sec['.name'], 'server') || '';
-					var remote_addr = '';
-					var serverSecs = uci.sections('tailcat', 'server') || [];
-					for (var k = 0; k < serverSecs.length; k++) {
-						var sname = uci.get('tailcat', serverSecs[k]['.name'], 'name') || serverSecs[k]['.name'];
-						if (sname === serverName || serverSecs[k]['.name'] === serverName) {
-							remote_addr = uci.get('tailcat', serverSecs[k]['.name'], 'remote_addr') || '';
-							break;
+					(function (sec) {
+						if (uci.get('tailcat', sec['.name'], 'role') !== 'forward') { return; }
+						var serverName = uci.get('tailcat', sec['.name'], 'server') || '';
+						var remote_addr = '';
+						var serverSecs = uci.sections('tailcat', 'server') || [];
+						for (var k = 0; k < serverSecs.length; k++) {
+							var sname = uci.get('tailcat', serverSecs[k]['.name'], 'name') || serverSecs[k]['.name'];
+							if (sname === serverName || serverSecs[k]['.name'] === serverName) {
+								remote_addr = uci.get('tailcat', serverSecs[k]['.name'], 'remote_addr') || '';
+								break;
+							}
 						}
-					}
-					if (!remote_addr) { continue; }
-					var resolveFirst = !remote_addr.match(/^tc/i) && remote_addr.indexOf('.') >= 0;
-					var secId = sec['.name'];
-					if (resolveFirst) {
-						tasks.push(
-							fs.exec('/usr/lib/tailcat/tailcat-derp-info.sh', [remote_addr])
-								.then(function (r) { return [secId, (r && r.stdout) ? r.stdout.trim() : 'auto']; })
-								.catch(function () { return [secId, 'auto']; })
-						);
-					} else {
-						tasks.push(
-							fs.exec('/usr/bin/tailcat', ['parse', remote_addr])
-								.then(function (r) {
-									if (!r || !r.stdout) { return [secId, 'auto']; }
-									var m = r.stdout.match(/"HostName"\s*:\s*"([^"]+)"/);
-									return [secId, m ? m[1] : 'auto'];
-								})
-								.catch(function () { return [secId, 'auto']; })
-						);
-					}
+						if (!remote_addr) { return; }
+						var resolveFirst = !remote_addr.match(/^tc/i) && remote_addr.indexOf('.') >= 0;
+						var secId = sec['.name'];
+						if (resolveFirst) {
+							tasks.push(
+								fs.exec('/usr/lib/tailcat/tailcat-derp-info.sh', [remote_addr])
+									.then(function (r) { return [secId, (r && r.stdout) ? r.stdout.trim() : 'auto']; })
+									.catch(function () { return [secId, 'auto']; })
+							);
+						} else {
+							tasks.push(
+								fs.exec('/usr/bin/tailcat', ['parse', remote_addr])
+									.then(function (r) {
+										if (!r || !r.stdout) { return [secId, 'auto']; }
+										var m = r.stdout.match(/"HostName"\s*:\s*"([^"]+)"/);
+										return [secId, m ? m[1] : 'auto'];
+									})
+									.catch(function () { return [secId, 'auto']; })
+							);
+						}
+					})(secs[j]);
 				}
 				return Promise.all(tasks).then(function (pairs) {
 					var derpMap = {};
