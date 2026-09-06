@@ -272,7 +272,7 @@ config instance 'remote_web'
 - [ ] **F-GENKEY**：通过 `tailcat genkey` 持久化密钥。当前每次 `serve` 重启都会产生新的临时地址，破坏任何带外共享的 `tc…` 值。新增 "Keys" 子页（或 Overview 区块）运行 `tailcat genkey --key=default`，并暴露每实例的 `--key=<name>`。
 - [ ] **F-UDP**：应用层 UDP 支持 —— **在 tailcat 0.6.0 中受上游限制**。Go 库与 `tailcat socks` 支持 UDP，但 `serve` 和 `forward` 子命令未暴露 `--protocol=udp` 标志（forward 仅支持 TCP）。待上游提供 UDP CLI 接口后再议。
 - [x] **F-SSH-AUTH**：`serve ssh` 公钥认证（`--ssh-authorized-keys`，上游 v0.6.0 #88）。新增 `serve_kind=ssh_auth`，运行 `tailcat serve --ssh-authorized-keys=<sources> ssh`；`ssh_authorized_keys` 字段仅在 `serve_kind=ssh_auth` 时条件显示（overview.js 与 services.js）。现有 `serve_kind=ssh`（免认证）保持不变。
-- [x] **F-DNS-PUBLISH**：将 serve 实例的 tailcat 地址发布到 Cloudflare TXT 记录。serve 实例新增 `dns_publish` 开关 + `dns_name` 字段（overview.js + services.js）；概览页配置 `general.cf_api_token`/`cf_zone_id` 凭据。`tailcat-dns-publish.sh` 在 FQDN 写入 `tailcat=<addr>`（裸值、不带引号）；init.d 在地址文件生成后发布，停止/重载时取消发布。
+- [x] **F-DNS-PUBLISH**：将 serve 实例的 tailcat 地址发布到 Cloudflare TXT 记录。serve 实例新增 `dns_publish` 开关 + `dns_name` 字段（overview.js + services.js）；概览页配置 `general.cf_api_token`/`cf_zone_id` 凭据。`tailcat-dns-publish.sh` 在 FQDN 写入 `tailcat=<addr>`（裸值、不带引号）；init.d 在地址文件生成后发布，停止/重载时取消发布。发布轮询窗口从 10s 延长到 60s，因为 tailcat 仅在密钥加载 + DERP 引导完成后才写 `TAILCAT_ADDR_FILE`（冷启动 15–25s）。
 - [x] **F-DNS-RESOLVE**：连接 DNS 发布的远端服务器。`server` 段的 `remote_addr` 现可填域名；`tailcat-instance.sh` 检测非 `tc...` 值并通过 `tailcat-dns-resolve.sh` 解析（dig → nslookup → host，剥离 `tailcat=` 前缀）。
 - [ ] **F-SERVE-FILES**：`serve files` SFTP 服务器，支持 `--files=dir:ro|rw|wo`。新增 `serve_kind=files` + 目录 Value + 模式 ListValue（条件显示）。
 - [ ] **F-SERVE-EXIT**：`serve exit-node` 模式 —— 将本路由器作为远端客户端的出口节点运行。新增 `serve_kind=exit-node` 选项。
