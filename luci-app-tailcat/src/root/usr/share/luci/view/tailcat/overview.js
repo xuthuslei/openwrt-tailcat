@@ -18,18 +18,16 @@ return view.extend({
 			// looking up the referenced server's remote_addr, then running
 			// `tailcat parse` on it (literal tc… addrs) or on the TXT-
 			// resolved address (domains). Returns a map: section_id → host.
-			uci.sections('tailcat', 'instance').then(function (secs) {
+			// uci.sections() is synchronous in this LuCI version.
+			(function () {
+				var secs = uci.sections('tailcat', 'instance') || [];
 				var tasks = [];
-				var secByName = {};
-				for (var i = 0; i < secs.length; i++) {
-					secByName[secs[i]['.name']] = secs[i];
-				}
 				for (var j = 0; j < secs.length; j++) {
 					var sec = secs[j];
 					if (uci.get('tailcat', sec['.name'], 'role') !== 'forward') { continue; }
 					var serverName = uci.get('tailcat', sec['.name'], 'server') || '';
 					var remote_addr = '';
-					var serverSecs = uci.sections('tailcat', 'server');
+					var serverSecs = uci.sections('tailcat', 'server') || [];
 					for (var k = 0; k < serverSecs.length; k++) {
 						var sname = uci.get('tailcat', serverSecs[k]['.name'], 'name') || serverSecs[k]['.name'];
 						if (sname === serverName || serverSecs[k]['.name'] === serverName) {
@@ -38,8 +36,6 @@ return view.extend({
 						}
 					}
 					if (!remote_addr) { continue; }
-					// If remote_addr is a domain, resolve it via the DNS helper.
-					var parseArg = remote_addr;
 					var resolveFirst = !remote_addr.match(/^tc/i) && remote_addr.indexOf('.') >= 0;
 					var secId = sec['.name'];
 					if (resolveFirst) {
@@ -65,7 +61,7 @@ return view.extend({
 					for (var p = 0; p < pairs.length; p++) { derpMap[pairs[p][0]] = pairs[p][1]; }
 					return derpMap;
 				});
-			})
+			})()
 		]);
 	},
 
