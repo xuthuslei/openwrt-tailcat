@@ -142,10 +142,28 @@ return view.extend({
 		o.depends('serve_kind', 'recv');
 		o.modalonly = true;
 
-		o = s.option(form.Value, 'ssh_authorized_keys', _('SSH authorized keys'));
+		// SSH key sources (multi-select, ssh_auth only).
+		// 1. OpenWrt Dropbear authorized_keys
+		o = s.option(form.Flag, 'ssh_use_dropbear_keys', _('Use OpenWrt Dropbear keys'));
+		o.rmempty = false;
+		o.default = '1';
+		o.description = _('Include /etc/dropbear/authorized_keys (the standard OpenWrt SSH public key file).');
+		o.depends('serve_kind', 'ssh_auth');
+		o.modalonly = true;
+
+		// 2. GitHub users (comma-separated, fetched from github.com/<user>.keys)
+		o = s.option(form.Value, 'ssh_github_users', _('GitHub users'));
 		o.datatype = 'string';
-		o.placeholder = 'alice@github,~/.ssh/authorized_keys';
-		o.description = _('Comma-separated sources: authorized_keys file paths, literal OpenSSH public key lines, or "user@github" (fetched from https://github.com/user.keys). All sources are validated by tailcat at startup.');
+		o.placeholder = 'alice,bob';
+		o.description = _('Comma-separated GitHub usernames; their public keys are fetched at startup from https://github.com/<user>.keys.');
+		o.depends('serve_kind', 'ssh_auth');
+		o.modalonly = true;
+
+		// 3. Other authorized_keys file paths (comma-separated)
+		o = s.option(form.Value, 'ssh_extra_key_files', _('Other key files'));
+		o.datatype = 'string';
+		o.placeholder = '/root/.ssh/authorized_keys,/etc/ssh/extra_keys';
+		o.description = _('Comma-separated additional authorized_keys file paths or literal OpenSSH public key lines.');
 		o.depends('serve_kind', 'ssh_auth');
 		o.modalonly = true;
 

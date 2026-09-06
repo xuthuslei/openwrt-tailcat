@@ -49,7 +49,6 @@ if [ "$role" = "serve" ]; then
   serve_kind=$(uci -q get tailcat.$SECTION.serve_kind || echo "ports")
   serve_ports=$(uci -q get tailcat.$SECTION.serve_ports || echo "")
   recv_dir=$(uci -q get tailcat.$SECTION.recv_dir || echo "")
-  ssh_authorized_keys=$(uci -q get tailcat.$SECTION.ssh_authorized_keys || echo "")
   allowed=$(uci -q get tailcat.$SECTION.allowed || echo "")
 
   # --allow is a tunnel-layer client allowlist. It applies to the
@@ -72,17 +71,32 @@ if [ "$role" = "serve" ]; then
       ;;
     ssh_auth)
       # Public-key-authenticated SSH (tailcat 0.6.0, PR #88).
-      # --ssh-authorized-keys takes a comma-separated list of:
-      #   - authorized_keys file paths
-      #   - literal OpenSSH public key lines
-      #   - "user@github" (fetched from https://github.com/user.keys)
-      # All sources are loaded and validated by tailcat at startup;
-      # an empty/invalid list causes serve to fail.
-      [ -n "$ssh_authorized_keys" ] || {
-        echo "[$SECTION] serve_kind=ssh_auth requires ssh_authorized_keys" >&2
+      # Assemble --ssh-authorized-keys CSV from three UCI sources:
+      #   ssh_use_dropbear_keys=1 → /etc/dropbear/authorized_keys
+      #   ssh_github_users=alice,bob → alice@github,bob@github
+      #   ssh_extra_key_files=/path/to/keys,… → as-is
+      # Backward compat: a legacy ssh_authorized_keys UCI value, if
+      # present, takes precedence over the three-source assembly.
+      local ssh_sources ssh_use_dropbear ssh_github ssh_extra
+      ssh_use_dropbear=$(uci -q get tailcat.$SECTION.ssh_use_dropbear_keys || echo "1")
+      ssh_github=$(uci -q get tailcat.$SECTION.ssh_github_users || echo "")
+      ssh_extra=$(uci -q get tailcat.$SECTION.ssh_extra_key_files || echo "")
+      ssh_sources=""
+      [ "$ssh_use_dropbear" = "1" ] && ssh_sources="$ssh_sources,/etc/dropbear/authorized_keys"
+      if [ -n "$ssh_github" ]; then
+        local u
+        for u in $(echo "$ssh_github" | tr ',' ' '); do
+          ssh_sources="$ssh_sources,${u}@github"
+        done
+      fi
+      [ -n "$ssh_extra" ] && ssh_sources="$ssh_sources,$ssh_extra"
+      # Strip leading comma and collapse repeats.
+      ssh_sources=$(echo "$ssh_sources" | sed 's/^,//; s/,,*/,/g')
+      [ -n "$ssh_sources" ] || {
+        echo "[$SECTION] serve_kind=ssh_auth requires at least one SSH key source" >&2
         exit 1
       }
-      set -- "$@" "--ssh-authorized-keys=$ssh_authorized_keys" serve ssh
+      set -- "$@" "--ssh-authorized-keys=$ssh_sources" serve ssh
       ;;
     exit_node)
       # serve exit-node: this router becomes an exit node for all
