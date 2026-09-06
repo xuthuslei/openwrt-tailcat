@@ -52,12 +52,14 @@ if [ "$role" = "serve" ]; then
   ssh_authorized_keys=$(uci -q get tailcat.$SECTION.ssh_authorized_keys || echo "")
   allowed=$(uci -q get tailcat.$SECTION.allowed || echo "")
 
-  # --allow is a tunnel-layer client allowlist that applies to ALL
-  # serve kinds (ports, ssh, recv, files, exit-node). Without it,
-  # any peer that knows the tailcat address can reach the service.
-  # Format: comma-separated nodekey:… values (client public keys,
-  # obtained via "tailcat printpub" on each client).
-  [ -n "$allowed" ] && set -- "$@" "--allow=$allowed"
+  # --allow is a tunnel-layer client allowlist. It applies to the
+  # 'serve' subcommand (ports/ssh/ssh_auth/exit_node) but NOT to
+  # 'recv', which is its own top-level subcommand and rejects the
+  # flag. Format: comma-separated nodekey:… values (client public
+  # keys, obtained via "tailcat printpub" on each client).
+  if [ -n "$allowed" ] && [ "$serve_kind" != "recv" ]; then
+    set -- "$@" "--allow=$allowed"
+  fi
 
   case "$serve_kind" in
     ports)
