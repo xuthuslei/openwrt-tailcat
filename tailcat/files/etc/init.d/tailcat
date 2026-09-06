@@ -17,6 +17,7 @@ STOP=10
 
 TAILCAT_BIN="${TAILCAT_BIN:-/usr/bin/tailcat}"
 INSTANCE_HELPER="/usr/lib/tailcat/tailcat-instance.sh"
+DNS_PUBLISH_HELPER="/usr/lib/tailcat/tailcat-dns-publish.sh"
 CONFIG_NAME="tailcat"
 
 # --- firewall rule management -------------------------------------------
@@ -207,12 +208,42 @@ start_instance() {
 	procd_close_instance
 
 	echo "tailcat[$section]: started (role=$role)" >&2
+
+	# DNS publishing (serve instances only, opt-in via dns_publish=1).
+	# We wait briefly for tailcat to populate TAILCAT_ADDR_FILE, then
+	# hand off to tailcat-dns-publish.sh which writes the Cloudflare
+	# TXT record. Publishing is best-effort: a CF API failure is
+	# logged but does not abort the instance start.
+	if [ "$role" = "serve" ]; then
+		local dns_publish dns_name
+		config_get dns_publish "$section" dns_publish 0
+		config_get dns_name    "$section" dns_name    ""
+		if [ "$dns_publish" = "1" ] && [ -n "$dns_name" ]; then
+			(
+				# Subshell: don't block procd registration.
+				local i addr
+				addr_file="/var/run/tailcat/${section}.addr"
+				for i in 1 2 3 4 5 6 7 8 9 10; do
+					addr=$(cat "$addr_file" 2>/dev/null | tr -d '[:space:]')
+					[ -n "$addr" ] && break
+					sleep 1
+				done
+				if [ -z "$addr" ]; then
+					echo "tailcat[$section]: dns-publish: address never appeared, skipping" >&2
+					exit 0
+				fi
+				"$DNS_PUBLISH_HELPER" "$section" publish "$addr_file" "$dns_name" >&2 2>&1
+			) &
+		fi
+	fi
 }
 
 reload_service() {
 	# Clean up any firewall rules we added before restarting.
 	config_load "$CONFIG_NAME"
 	config_foreach cleanup_fw instance
+	# Unpublish any DNS TXT records we published.
+	config_foreach cleanup_dns instance
 	stop
 	start
 }
@@ -227,6 +258,20 @@ cleanup_fw() {
 	if [ "$open_fw" != "1" ]; then
 		fw_del_rule "$section"
 	fi
+}
+
+# Unpublish the Cloudflare TXT record for a serve instance, if it was
+# opted in via dns_publish=1. Called during reload/stop. Best-effort:
+# a CF API failure is logged but does not abort the stop.
+cleanup_dns() {
+	local section="$1"
+	local role dns_publish dns_name
+	config_get role "$section" role serve
+	[ "$role" = "serve" ] || return 0
+	config_get dns_publish "$section" dns_publish 0
+	config_get dns_name    "$section" dns_name    ""
+	[ "$dns_publish" = "1" ] && [ -n "$dns_name" ] || return 0
+	"$DNS_PUBLISH_HELPER" "$section" unpublish "$dns_name" >&2 2>&1 || true
 }
 
 status() {

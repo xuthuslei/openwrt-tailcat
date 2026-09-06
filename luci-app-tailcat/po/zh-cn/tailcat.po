@@ -19,6 +19,18 @@ msgstr "启用 tailcat 服务"
 msgid "Custom DERP map (optional)"
 msgstr "自定义 DERP 映射（可选）"
 
+msgid "Cloudflare API token"
+msgstr "Cloudflare API 令牌"
+
+msgid "Required only when a serve instance opts in to DNS publishing. Token must have Zone:DNS:Edit on the target zone."
+msgstr "仅当 serve 实例启用 DNS 发布时需要。令牌须对目标 zone 拥有 Zone:DNS:Edit 权限。"
+
+msgid "Cloudflare zone ID"
+msgstr "Cloudflare zone ID"
+
+msgid "The Cloudflare zone ID that hosts the DNS name(s) you publish."
+msgstr "承载你要发布的 DNS 名称的 Cloudflare zone ID。"
+
 msgid "tailcat version"
 msgstr "tailcat 版本"
 
@@ -93,6 +105,18 @@ msgstr "SSH 授权公钥"
 
 msgid "Comma-separated sources: authorized_keys file paths, literal OpenSSH public key lines, or \"user@github\" (fetched from https://github.com/user.keys). All sources are validated by tailcat at startup."
 msgstr "逗号分隔的来源：authorized_keys 文件路径、字面 OpenSSH 公钥行，或 \"user@github\"（从 https://github.com/user.keys 拉取）。所有来源在启动时由 tailcat 校验。"
+
+msgid "Publish address to DNS"
+msgstr "发布地址到 DNS"
+
+msgid "When enabled, the generated tailcat address is written as a TXT record \"tailcat=<addr>\" at the DNS name below. Requires Cloudflare API credentials in the Overview page."
+msgstr "启用后，生成的 tailcat 地址会以 TXT 记录 \"tailcat=<addr>\" 写入下方 DNS 名称。需要在概览页配置 Cloudflare API 凭据。"
+
+msgid "DNS name to publish"
+msgstr "要发布的 DNS 名称"
+
+msgid "The FQDN whose TXT record will carry \"tailcat=<addr>\". Clients can then connect by name: tailcat ssh <dns_name>."
+msgstr "承载 \"tailcat=<addr>\" TXT 记录的 FQDN。客户端随后可按名称连接：tailcat ssh <dns_name>。"
 
 msgid "File drop box (recv)"
 msgstr "文件接收箱（recv）"

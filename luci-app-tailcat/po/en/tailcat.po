@@ -16,6 +16,18 @@ msgstr "Enable tailcat service"
 msgid "Custom DERP map (optional)"
 msgstr "Custom DERP map (optional)"
 
+msgid "Cloudflare API token"
+msgstr "Cloudflare API token"
+
+msgid "Required only when a serve instance opts in to DNS publishing. Token must have Zone:DNS:Edit on the target zone."
+msgstr "Required only when a serve instance opts in to DNS publishing. Token must have Zone:DNS:Edit on the target zone."
+
+msgid "Cloudflare zone ID"
+msgstr "Cloudflare zone ID"
+
+msgid "The Cloudflare zone ID that hosts the DNS name(s) you publish."
+msgstr "The Cloudflare zone ID that hosts the DNS name(s) you publish."
+
 msgid "tailcat version"
 msgstr "tailcat version"
 
@@ -90,6 +102,18 @@ msgstr "SSH authorized keys"
 
 msgid "Comma-separated sources: authorized_keys file paths, literal OpenSSH public key lines, or \"user@github\" (fetched from https://github.com/user.keys). All sources are validated by tailcat at startup."
 msgstr "Comma-separated sources: authorized_keys file paths, literal OpenSSH public key lines, or \"user@github\" (fetched from https://github.com/user.keys). All sources are validated by tailcat at startup."
+
+msgid "Publish address to DNS"
+msgstr "Publish address to DNS"
+
+msgid "When enabled, the generated tailcat address is written as a TXT record \"tailcat=<addr>\" at the DNS name below. Requires Cloudflare API credentials in the Overview page."
+msgstr "When enabled, the generated tailcat address is written as a TXT record \"tailcat=<addr>\" at the DNS name below. Requires Cloudflare API credentials in the Overview page."
+
+msgid "DNS name to publish"
+msgstr "DNS name to publish"
+
+msgid "The FQDN whose TXT record will carry \"tailcat=<addr>\". Clients can then connect by name: tailcat ssh <dns_name>."
+msgstr "The FQDN whose TXT record will carry \"tailcat=<addr>\". Clients can then connect by name: tailcat ssh <dns_name>."
 
 msgid "File drop box (recv)"
 msgstr "File drop box (recv)"

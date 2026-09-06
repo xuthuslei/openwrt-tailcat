@@ -148,6 +148,20 @@ return view.extend({
 		o.depends('serve_kind', 'ssh_auth');
 		o.modalonly = true;
 
+		// DNS publishing (serve instances, opt-in).
+		o = s.option(form.Flag, 'dns_publish', _('Publish address to DNS'));
+		o.rmempty = false;
+		o.default = '0';
+		o.description = _('When enabled, the generated tailcat address is written as a TXT record "tailcat=<addr>" at the DNS name below. Requires Cloudflare API credentials in the Overview page.');
+		o.modalonly = true;
+
+		o = s.option(form.Value, 'dns_name', _('DNS name to publish'));
+		o.datatype = 'hostname';
+		o.placeholder = 'cloudcone-cc.example.com';
+		o.description = _('The FQDN whose TXT record will carry "tailcat=<addr>". Clients can then connect by name: tailcat ssh <dns_name>.');
+		o.depends('dns_publish', '1');
+		o.modalonly = true;
+
 		o = s.option(form.Flag, 'verbose', _('Verbose logs'));
 		o.rmempty = false;
 		o.modalonly = true;

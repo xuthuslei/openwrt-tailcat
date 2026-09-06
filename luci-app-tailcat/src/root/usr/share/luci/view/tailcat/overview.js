@@ -39,6 +39,17 @@ return view.extend({
 		o.placeholder = 'https://example.com/derpmap.json';
 		o.editable = true;
 
+		o = s.option(form.Value, 'cf_api_token', _('Cloudflare API token'));
+		o.datatype = 'string';
+		o.description = _('Required only when a serve instance opts in to DNS publishing. Token must have Zone:DNS:Edit on the target zone.');
+		o.password = true;
+		o.editable = true;
+
+		o = s.option(form.Value, 'cf_zone_id', _('Cloudflare zone ID'));
+		o.datatype = 'string';
+		o.description = _('The Cloudflare zone ID that hosts the DNS name(s) you publish.');
+		o.editable = true;
+
 		o = s.option(form.DummyValue, '_binary', _('tailcat version'));
 		// In LuCI 25.x the DummyValue renderWidget uses
 		// (cfgvalue != null) ? cfgvalue : this.default, where cfgvalue
@@ -141,6 +152,21 @@ return view.extend({
 		o.placeholder = 'alice@github,~/.ssh/authorized_keys';
 		o.description = _('Comma-separated sources: authorized_keys file paths, literal OpenSSH public key lines, or "user@github" (fetched from https://github.com/user.keys). All sources are validated by tailcat at startup.');
 		o.depends('serve_kind', 'ssh_auth');
+		o.modalonly = true;
+
+		// DNS publishing (serve instances, opt-in).
+		o = s.option(form.Flag, 'dns_publish', _('Publish address to DNS'));
+		o.rmempty = false;
+		o.default = '0';
+		o.description = _('When enabled, the generated tailcat address is written as a TXT record "tailcat=<addr>" at the DNS name below. Requires Cloudflare API credentials in the Overview page.');
+		o.depends('role', 'serve');
+		o.modalonly = true;
+
+		o = s.option(form.Value, 'dns_name', _('DNS name to publish'));
+		o.datatype = 'hostname';
+		o.placeholder = 'cloudcone-cc.example.com';
+		o.description = _('The FQDN whose TXT record will carry "tailcat=<addr>". Clients can then connect by name: tailcat ssh <dns_name>.');
+		o.depends('dns_publish', '1');
 		o.modalonly = true;
 
 		// Forward-specific fields (only shown for role=forward)

@@ -12,6 +12,7 @@
 
 SECTION="$1"
 TAILCAT_BIN="${TAILCAT_BIN:-/usr/bin/tailcat}"
+INSTANCE_RESOLVER="${INSTANCE_RESOLVER:-/usr/lib/tailcat/tailcat-dns-resolve.sh}"
 
 [ -n "$SECTION" ] || { echo "usage: $0 <section>" >&2; exit 1; }
 [ -x "$TAILCAT_BIN" ] || { echo "tailcat binary not found at $TAILCAT_BIN" >&2; exit 1; }
@@ -111,6 +112,28 @@ elif [ "$role" = "forward" ]; then
       exit 1
     fi
   fi
+
+  # If remote_addr is a domain name rather than a tc... address,
+  # resolve it via DNS TXT lookup. The TXT value format is
+  # "tailcat=<addr>" (what tailcat-dns-publish.sh writes).
+  case "$remote_addr" in
+    tc*|TC*)
+      # Looks like a literal tailcat address → use as-is.
+      ;;
+    *)
+      # Treat as a DNS name if it contains a dot and isn't empty.
+      if [ -n "$remote_addr" ] && echo "$remote_addr" | grep -q '\.'; then
+        resolved=$("$INSTANCE_RESOLVER" "$remote_addr" 2>/dev/null)
+        if [ -n "$resolved" ]; then
+          echo "[$SECTION] resolved $remote_addr → $resolved" >&2
+          remote_addr="$resolved"
+        else
+          echo "[$SECTION] failed to resolve DNS name '$remote_addr'" >&2
+          exit 1
+        fi
+      fi
+      ;;
+  esac
 
   [ -n "$remote_addr" ] || { echo "[$SECTION] forward requires a server with remote_addr" >&2; exit 1; }
 
