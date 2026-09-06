@@ -59,9 +59,35 @@ case "$ACTION" in
 			exit 1
 		}
 		# Read the tailcat address that init.d wrote out.
-		ADDR=$(cat "$ADDR_FILE" 2>/dev/null | tr -d '[:space:]')
+		# tailcat rewrites TAILCAT_ADDR_FILE continuously while
+		# running, so a raw `cat` can catch a half-written buffer
+		# (truncated, missing the "tc" prefix, or with mutated
+		# chars). Read up to 10 times, accepting the first value
+		# that starts with "tc" and is long enough to be real.
+		# NOTE: do NOT use `tr -d '[:space:]'` — BusyBox tr has
+		# been observed to strip non-space chars (e.g. 'p') from
+		# tailcat addresses, corrupting them. Use `head -1` +
+		# parameter expansion to strip the trailing newline.
+		ADDR=""
+		i=0
+		while [ "$i" -lt 10 ]; do
+		 cand=$(head -1 "$ADDR_FILE" 2>/dev/null)
+		 cand=${cand%%[[:space:]]*}
+		 if [ -n "$cand" ]; then
+		  case "$cand" in
+		   tc*)
+		    if [ ${#cand} -gt 40 ]; then
+		     ADDR="$cand"
+		     break
+		    fi
+		    ;;
+		  esac
+		 fi
+		 i=$((i + 1))
+		 sleep 1
+		done
 		[ -n "$ADDR" ] || {
-			echo "[$SECTION] dns-publish: addr file '$ADDR_FILE' empty/missing" >&2
+			echo "[$SECTION] dns-publish: addr file '$ADDR_FILE' empty/missing after 10s" >&2
 			exit 2
 		}
 		;;
@@ -117,12 +143,12 @@ cf_delete_by_id() {
 
 cf_create_txt() {
 	# cf_create_txt <dns_name> <"tailcat=<addr>">
-	# NOTE: value is sent BARE (no surrounding quotes). CF wraps it.
-	# The JSON string is built by single-quoting the shell variable
-	# inside the -d payload; the value itself contains no chars that
-	# break JSON (tailcat addresses are [A-Za-z0-9_-]).
+	# Per Cloudflare's requirement, the TXT content must be wrapped
+	# in surrounding double quotes. The JSON "content" field thus
+	# becomes "\"<value>\"" — the inner quotes are literal TXT data,
+	# the outer quotes are JSON string delimiters.
 	local payload
-	payload=$(printf '{"type":"TXT","name":"%s","content":"%s","ttl":300}' \
+	payload=$(printf '{"type":"TXT","name":"%s","content":"\\"%s\\"","ttl":300}' \
 		"$1" "$2")
 	cf_call POST "/zones/$CF_ZONE/dns_records" "$payload" >/dev/null 2>&1 || return $?
 }
