@@ -13,13 +13,66 @@ return view.extend({
 			L.resolveDefault(callServiceList('tailcat'), {}),
 			fs.exec('/usr/bin/tailcat', ['--version']).then(function (r) {
 			 return (r && r.stdout) ? r.stdout.trim() : 'n/a';
-			}).catch(function () { return 'n/a'; })
+			}).catch(function () { return 'n/a'; }),
+			// Resolve DERP relay hostname for each forward instance by
+			// looking up the referenced server's remote_addr, then running
+			// `tailcat parse` on it (literal tc… addrs) or on the TXT-
+			// resolved address (domains). Returns a map: section_id → host.
+			uci.sections('tailcat', 'instance').then(function (secs) {
+				var tasks = [];
+				var secByName = {};
+				for (var i = 0; i < secs.length; i++) {
+					secByName[secs[i]['.name']] = secs[i];
+				}
+				for (var j = 0; j < secs.length; j++) {
+					var sec = secs[j];
+					if (uci.get('tailcat', sec['.name'], 'role') !== 'forward') { continue; }
+					var serverName = uci.get('tailcat', sec['.name'], 'server') || '';
+					var remote_addr = '';
+					var serverSecs = uci.sections('tailcat', 'server');
+					for (var k = 0; k < serverSecs.length; k++) {
+						var sname = uci.get('tailcat', serverSecs[k]['.name'], 'name') || serverSecs[k]['.name'];
+						if (sname === serverName || serverSecs[k]['.name'] === serverName) {
+							remote_addr = uci.get('tailcat', serverSecs[k]['.name'], 'remote_addr') || '';
+							break;
+						}
+					}
+					if (!remote_addr) { continue; }
+					// If remote_addr is a domain, resolve it via the DNS helper.
+					var parseArg = remote_addr;
+					var resolveFirst = !remote_addr.match(/^tc/i) && remote_addr.indexOf('.') >= 0;
+					var secId = sec['.name'];
+					if (resolveFirst) {
+						tasks.push(
+							fs.exec('/usr/lib/tailcat/tailcat-derp-info.sh', [remote_addr])
+								.then(function (r) { return [secId, (r && r.stdout) ? r.stdout.trim() : 'auto']; })
+								.catch(function () { return [secId, 'auto']; })
+						);
+					} else {
+						tasks.push(
+							fs.exec('/usr/bin/tailcat', ['parse', remote_addr])
+								.then(function (r) {
+									if (!r || !r.stdout) { return [secId, 'auto']; }
+									var m = r.stdout.match(/"HostName"\s*:\s*"([^"]+)"/);
+									return [secId, m ? m[1] : 'auto'];
+								})
+								.catch(function () { return [secId, 'auto']; })
+						);
+					}
+				}
+				return Promise.all(tasks).then(function (pairs) {
+					var derpMap = {};
+					for (var p = 0; p < pairs.length; p++) { derpMap[pairs[p][0]] = pairs[p][1]; }
+					return derpMap;
+				});
+			})
 		]);
 	},
 
 	render: function (data) {
 		var instances = (data[1] && data[1].tailcat && data[1].tailcat.instances) ? data[1].tailcat.instances : {};
 		var binaryVersion = data[2];
+		var derpMap = data[3] || {};
 
 		var m, s, o;
 
@@ -98,35 +151,19 @@ return view.extend({
 		o.remove = function () {};
 
 		// DERP relay info column (forward instances).
-		// tailcat addresses encode the DERP region; we surface it so
-		// users can see which relay a remote connection uses.
+		// The derpMap is pre-resolved in load() by running
+		// `tailcat parse` (or tailcat-derp-info.sh for domains)
+		// on each forward instance's remote_addr, extracting
+		// Region.Nodes[].HostName.
 		o = s.option(form.DummyValue, '_derp', _('DERP relay'));
 		o.textvalue = function (section_id) {
 		 var role = uci.get('tailcat', section_id, 'role');
 		 if (role !== 'forward') { return '<span style="color:#888">—</span>'; }
-		 // Resolve the remote server's tailcat address.
-		 var server = uci.get('tailcat', section_id, 'server') || '';
-		 var remote_addr = '';
-		 var secs = uci.sections('tailcat', 'server');
-		 for (var i = 0; i < secs.length; i++) {
-		  var sname = uci.get('tailcat', secs[i]['.name'], 'name') || secs[i]['.name'];
-		  if (sname === server || secs[i]['.name'] === server) {
-		   remote_addr = uci.get('tailcat', secs[i]['.name'], 'remote_addr') || '';
-		   break;
-		  }
+		 var host = derpMap[section_id];
+		 if (!host || host === 'unknown' || host === 'auto') {
+		  return '<span style="color:#888">auto</span>';
 		 }
-		 if (!remote_addr) { return '<span style="color:#a00">no server</span>'; }
-		 // The address prefix encodes the DERP region: e.g. "tcpnyc..." or "tcpfra...".
-		 // tailcat uses 3-letter region codes embedded after the scheme.
-		 var m = remote_addr.match(/^tc[a-z]?([a-z]{3})/i);
-		 if (m) {
-		  return '<span style="color:#06c;font-weight:bold">' + m[1].toLowerCase() + '</span>';
-		 }
-		 // Custom DERP host: addresses starting with "tch" use a custom relay.
-		 if (remote_addr.match(/^tch/i)) {
-		  return '<span style="color:#06c;font-weight:bold">custom</span>';
-		 }
-		 return '<span style="color:#888">auto</span>';
+		 return '<span style="color:#06c;font-weight:bold">' + host + '</span>';
 		};
 		o.rawhtml = true;
 		o.modalonly = false;
