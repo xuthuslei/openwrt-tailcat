@@ -160,13 +160,14 @@ return view.extend({
 		o.rmempty = false;
 		o.modalonly = true;
 		o.description = _('Select a remote server defined above.');
-		// Populate from all 'server' sections.
+		// Populate from all 'server' sections. Show only the server
+		// name in the dropdown; the tailcat address is too long to
+		// display inline and clutters the modal.
 		var serverSections = uci.sections('tailcat', 'server');
 		for (var i = 0; i < serverSections.length; i++) {
 			var sec = serverSections[i];
 			var sname = uci.get('tailcat', sec['.name'], 'name') || sec['.name'];
-			var addr = uci.get('tailcat', sec['.name'], 'remote_addr') || '';
-			o.value(sname, sname + (addr ? ' (' + addr + ')' : ''));
+			o.value(sname, sname);
 		}
 
 		o = s.option(form.Value, 'local_port', _('Local port'));
