@@ -263,19 +263,21 @@ config instance 'remote_web'
 ### P0 — 正确性 / 必修
 
 - [x] **F-FW-FIX**：`open_firewall` 现在为新 `local_port` 路径开 WAN 端口，不再只认 legacy `forwards` 选项。（提交 `268dfe9`）
-- [ ] **F-MAKEFILE**：同步 `luci-app-tailcat/Makefile` 安装路径与磁盘上的视图布局（`src/root/usr/share/luci/view/tailcat/*.js`）。当前 `make package/luci-app-tailcat/compile` 会丢掉视图，只有 CI 作业里硬编码的路径才能产出正确的 ipk。
+- [x] **F-MAKEFILE**：`luci-app-tailcat/Makefile` 安装路径现已与磁盘上的视图布局（`src/root/usr/share/luci/view/tailcat/*.js`）一致。本地 `make package/luci-app-tailcat/compile` 即可产出正确的 ipk；不再依赖 CI。（提交 `0b31521`）
 - [ ] **F-PO-CLEANUP**：清理 `po/en` 与 `po/zh-cn`，使其与视图实际发出的字符串对齐（残留的 `Remote tailcat address` / `Port forwards (local:remote pairs)` msgid 已不再使用）。
 
 ### P1 — 高价值功能缺口（上游已提供能力）
 
-- [ ] **F-EXIT-FWD**：通过 exit-node 服务器转发到任意 `IP:port` 目标（`local:remote-ip:remote-port` 形式）。上游 `tailcat forward` 自 v0.6.0 起支持；插件需在 forward 弹窗加 "Forward mode" 单选 + `remote_host` 字段，`tailcat-instance.sh` 须输出三段式映射。
-- [ ] **F-GENKEY**：通过 `tailcat genkey` 持久化密钥。当前每次 `serve` 重启都会产生新的临时地址，破坏任何带外共享的 `tc…` 值。新增 "Keys" 子页（或 Overview 区块）运行 `tailcat genkey --key=default`，并暴露每实例的 `--key=<name>`。
+- [x] **F-EXIT-FWD**：通过 exit-node 服务器转发到任意 `IP:port` 目标（`local:remote-ip:remote-port` 形式）。设置 `remote_host` 时，`tailcat-instance.sh` 输出三段式映射；overview.js 在 forward 弹窗提供 "Remote host (exit-node)" 字段。（提交 `0b31521`）
+- [x] **F-GENKEY**：通过 `tailcat genkey` 持久化密钥。新增 uci-defaults 脚本，首次安装时自动生成 `default` 服务器密钥；`tailcat-instance.sh` 支持每实例 `--key=<name>`；overview.js + services.js 提供 "Persistent key name" 字段。DNS 发布的服务现在重启后保持稳定地址。（提交 `0b31521`）
 - [ ] **F-UDP**：应用层 UDP 支持 —— **在 tailcat 0.6.0 中受上游限制**。Go 库与 `tailcat socks` 支持 UDP，但 `serve` 和 `forward` 子命令未暴露 `--protocol=udp` 标志（forward 仅支持 TCP）。待上游提供 UDP CLI 接口后再议。
 - [x] **F-SSH-AUTH**：`serve ssh` 公钥认证（`--ssh-authorized-keys`，上游 v0.6.0 #88）。新增 `serve_kind=ssh_auth`，运行 `tailcat serve --ssh-authorized-keys=<sources> ssh`；`ssh_authorized_keys` 字段仅在 `serve_kind=ssh_auth` 时条件显示（overview.js 与 services.js）。现有 `serve_kind=ssh`（免认证）保持不变。多选 SSH 公钥来源已添加：`ssh_use_dropbear_keys`（Flag，默认开，包含 `/etc/dropbear/authorized_keys`）、`ssh_github_users`（Value，如 `alice,bob`）、`ssh_extra_key_files`（Value，额外文件路径）。三个来源由 `tailcat-instance.sh` 组装为 `--ssh-authorized-keys` CSV。
 - [x] **F-DNS-PUBLISH**：将 serve 实例的 tailcat 地址发布到 Cloudflare TXT 记录。serve 实例新增 `dns_publish` 开关 + `dns_name` 字段（overview.js + services.js）；概览页配置 `general.cf_api_token`/`cf_zone_id` 凭据。`tailcat-dns-publish.sh` 在 FQDN 写入 `tailcat=<addr>`（裸值、不带引号）；init.d 在地址文件生成后发布，停止/重载时取消发布。发布轮询窗口从 10s 延长到 60s，因为 tailcat 仅在密钥加载 + DERP 引导完成后才写 `TAILCAT_ADDR_FILE`（冷启动 15–25s）。增加原子读取 + `tc*` 校验，因为 tailcat 持续重写 addr 文件（BusyBox `tr -d '[:space:]'` 会剥离非空白字符，损坏地址）。TXT 内容按 Cloudflare 要求用字面双引号包裹。
 - [x] **F-DNS-RESOLVE**：连接 DNS 发布的远端服务器。`server` 段的 `remote_addr` 现可填域名；`tailcat-instance.sh` 检测非 `tc...` 值并通过 `tailcat-dns-resolve.sh` 解析（dig → nslookup → host，剥离 `tailcat=` 前缀）。
-- [ ] **F-SERVE-FILES**：`serve files` SFTP 服务器，支持 `--files=dir:ro|rw|wo`。新增 `serve_kind=files` + 目录 Value + 模式 ListValue（条件显示）。
+- [x] **F-SERVE-FILES**：`serve files` SFTP 服务器，支持 `--files=dir:ro|rw|wo|wo+`。新增 `serve_kind=files` + 目录 Value + 模式 ListValue（条件显示）。模式：`ro`（只读，默认）、`rw`（读写）、`wo`（只写扁平）、`wo+`（只写递归）。（提交 `0b31521`）
 - [x] **F-SERVE-EXIT**：`serve exit-node` 模式 —— 将本路由器作为远端客户端的出口节点运行。新增 `serve_kind=exit_node` 选项（Kind 下拉，overview.js + services.js）；`tailcat-instance.sh` 输出 `serve exit-node`。
+- [x] **F-DERP-LOCAL**：serve 实例的每实例 DERP 中继选择。新增 `derp_region` + `derp_fixed` UCI 选项；`tailcat-instance.sh` 在 serve 前用 `--region=<region> [--fixed-region]`（重新）生成命名密钥，把选定 DERP 中继固化到密钥和 tailcat 地址。区域可为 ID（301）、代码（nyc）、名称子串或自定义 DERP 服务器 hostname。"auto" = 每次启动按延迟选择。（提交 `624859f`）
+- [x] **F-DERP-REMOTE**：Overview 网格上 forward 实例的 DERP 中继信息列。init.d 通过 `tailcat-derp-info.sh`（运行 `tailcat parse` 提取 `Region.Nodes[].HostName`）解析 DERP 中继 hostname，并在 procd 启动前同步写入 `/var/run/tailcat/<section>.derp`。overview.js `load()` 通过 `fs.read`（链到 `uci.load` resolve 之后）读取这些文件到 `derpMap`，`_derp` 列渲染 hostname。（提交 `2e13be9`、`e19a9a9`、`9f46b67`）
 
 ### P2 — 中等价值
 
@@ -284,6 +286,7 @@ config instance 'remote_web'
 - [ ] **F-PSK-OPTOUT**：暴露 `--psk=false` 为 "生成不带 PSK 的地址" 复选框（地址更短，便于手工抄写）。
 - [ ] **F-FULL-ADDRESS**：暴露 `--full-address`，让 serve 打印自包含地址（客户端无需 DERP map 拉取）。
 - [ ] **F-ERR-COLUMN**：在 Overview 网格加 "last error" 列；init 脚本在实例 helper 非零退出时写 `/var/run/tailcat/<section>.err`。
+- [x] **F-UI-TRUNCATE**：在 services.js（本机服务）与 forwards.js（远程转发）的实例网格中，长度超过 18 字符且以 `tc` 开头的 tailcat 地址被截断为前 14 字符 + `…`，保持表格紧凑。域名则完整显示。services.js 额外在每个 serve 实例地址旁渲染 `⧉` 复制按钮，点击将完整地址复制到剪贴板（以 `✓` 确认）。（提交 `f72f571`）
 
 ### P3 — 健壮性 / 可维护性
 
