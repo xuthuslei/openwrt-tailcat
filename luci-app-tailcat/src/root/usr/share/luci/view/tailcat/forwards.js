@@ -37,7 +37,11 @@ return view.extend({
 		// grid column: show remote_addr (read-only in table)
 		o = s.option(form.DummyValue, '_addr_disp', _('Tailcat address'));
 		o.textvalue = function (section_id) {
-		 return uci.get('tailcat', section_id, 'remote_addr') || '—';
+		 var a = uci.get('tailcat', section_id, 'remote_addr') || '—';
+		 if (a !== '—' && /^tc/i.test(a) && a.length > 18) {
+		  return a.slice(0, 14) + '…';
+		 }
+		 return a;
 		};
 		o.modalonly = false;
 

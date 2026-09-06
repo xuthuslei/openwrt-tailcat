@@ -82,8 +82,13 @@ return view.extend({
 
 		o = s.option(form.DummyValue, '_addr_disp', _('Tailcat address'));
 		o.textvalue = function (section_id) {
-		 return addrMap[section_id] || '—';
+		 var a = addrMap[section_id] || '';
+		 if (!a) { return '—'; }
+		 var disp = (/^tc/i.test(a) && a.length > 18) ? a.slice(0, 14) + '…' : a;
+		 return '<span class="tailcat-addr-text">' + disp + '</span>' +
+		  '<button type="button" class="cbi-button cbi-button-neutral tailcat-addr-copy" data-addr="' + a + '" title="' + _('Copy full address') + '">⧉</button>';
 		};
+		o.rawhtml = true;
 		o.modalonly = false;
 
 		// Enabled as a real checkbox in the grid (like overview),
@@ -232,6 +237,30 @@ return view.extend({
 		o.placeholder = '/var/log/tailcat/my_web.log';
 		o.modalonly = true;
 
-		return m.render();
+		return m.render().then(function (node) {
+		 // Delegate clicks on the ⧉ copy button.
+		 node.addEventListener('click', function (ev) {
+		  var btn = ev.target.closest('.tailcat-addr-copy');
+		  if (!btn) { return; }
+		  var addr = btn.getAttribute('data-addr') || '';
+		  if (!addr) { return; }
+		  if (navigator.clipboard && navigator.clipboard.writeText) {
+		   navigator.clipboard.writeText(addr);
+		  } else {
+		   var ta = document.createElement('textarea');
+		   ta.value = addr;
+		   ta.style.position = 'fixed';
+		   ta.style.opacity = '0';
+		   document.body.appendChild(ta);
+		   ta.select();
+		   try { document.execCommand('copy'); } catch (e) {}
+		   document.body.removeChild(ta);
+		  }
+		  var orig = btn.textContent;
+		  btn.textContent = '✓';
+		  setTimeout(function () { btn.textContent = orig; }, 1200);
+		 });
+		 return node;
+		});
 	}
 });
