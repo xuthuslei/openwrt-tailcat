@@ -75,18 +75,14 @@ if [ "$role" = "serve" ]; then
       #   ssh_use_dropbear_keys=1 → /etc/dropbear/authorized_keys
       #   ssh_github_users=alice,bob → alice@github,bob@github
       #   ssh_extra_key_files=/path/to/keys,… → as-is
-      # Backward compat: a legacy ssh_authorized_keys UCI value, if
-      # present, takes precedence over the three-source assembly.
-      local ssh_sources ssh_use_dropbear ssh_github ssh_extra
+      ssh_sources=""
       ssh_use_dropbear=$(uci -q get tailcat.$SECTION.ssh_use_dropbear_keys || echo "1")
       ssh_github=$(uci -q get tailcat.$SECTION.ssh_github_users || echo "")
       ssh_extra=$(uci -q get tailcat.$SECTION.ssh_extra_key_files || echo "")
-      ssh_sources=""
       [ "$ssh_use_dropbear" = "1" ] && ssh_sources="$ssh_sources,/etc/dropbear/authorized_keys"
       if [ -n "$ssh_github" ]; then
-        local u
-        for u in $(echo "$ssh_github" | tr ',' ' '); do
-          ssh_sources="$ssh_sources,${u}@github"
+        for ssh_u in $(echo "$ssh_github" | tr ',' ' '); do
+          ssh_sources="$ssh_sources,${ssh_u}@github"
         done
       fi
       [ -n "$ssh_extra" ] && ssh_sources="$ssh_sources,$ssh_extra"
@@ -96,7 +92,7 @@ if [ "$role" = "serve" ]; then
         echo "[$SECTION] serve_kind=ssh_auth requires at least one SSH key source" >&2
         exit 1
       }
-      set -- "$@" "--ssh-authorized-keys=$ssh_sources" serve ssh
+      set -- "$@" serve "--ssh-authorized-keys=$ssh_sources" ssh
       ;;
     exit_node)
       # serve exit-node: this router becomes an exit node for all
