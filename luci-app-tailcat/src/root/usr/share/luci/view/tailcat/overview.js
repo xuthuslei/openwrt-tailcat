@@ -38,13 +38,13 @@ return view.extend({
 						if (!remote_addr) { return; }
 						var resolveFirst = !remote_addr.match(/^tc/i) && remote_addr.indexOf('.') >= 0;
 						var secId = sec['.name'];
-						if (resolveFirst) {
-							tasks.push(
-								fs.exec('/usr/lib/tailcat/tailcat-derp-info.sh', [remote_addr])
-									.then(function (r) { return [secId, (r && r.stdout) ? r.stdout.trim() : 'auto']; })
-									.catch(function () { return [secId, 'auto']; })
-							);
-						} else {
+					if (resolveFirst) {
+						tasks.push(
+							fs.exec('/bin/sh', ['/usr/lib/tailcat/tailcat-derp-info.sh', remote_addr])
+								.then(function (r) { return [secId, (r && r.stdout) ? r.stdout.trim() : 'auto']; })
+								.catch(function () { return [secId, 'auto']; })
+						);
+					} else {
 							tasks.push(
 								fs.exec('/usr/bin/tailcat', ['parse', remote_addr])
 									.then(function (r) {
