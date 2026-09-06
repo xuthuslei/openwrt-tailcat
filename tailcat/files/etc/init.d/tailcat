@@ -18,6 +18,7 @@ STOP=10
 TAILCAT_BIN="${TAILCAT_BIN:-/usr/bin/tailcat}"
 INSTANCE_HELPER="/usr/lib/tailcat/tailcat-instance.sh"
 DNS_PUBLISH_HELPER="/usr/lib/tailcat/tailcat-dns-publish.sh"
+DERP_INFO_HELPER="/usr/lib/tailcat/tailcat-derp-info.sh"
 CONFIG_NAME="tailcat"
 
 # --- firewall rule management -------------------------------------------
@@ -208,6 +209,39 @@ start_instance() {
 	procd_close_instance
 
 	echo "tailcat[$section]: started (role=$role)" >&2
+
+	# Resolve the DERP relay hostname for this instance and stash it
+	# in /var/run/tailcat/<section>.derp so the LuCI overview page
+	# can display it without doing its own fs.exec round-trips.
+	# serve instances: parse the address tailcat wrote to addr_file.
+	# forward instances: parse the referenced server's remote_addr.
+	(
+		mkdir -p /var/run/tailcat
+		derp_file="/var/run/tailcat/${section}.derp"
+		: > "$derp_file"
+		host=""
+		if [ "$role" = "serve" ]; then
+			af="/var/run/tailcat/${section}.addr"
+			for _ in $(seq 1 30); do
+				[ -s "$af" ] && break
+				sleep 1
+			done
+			[ -s "$af" ] && host=$("$DERP_INFO_HELPER" "$(cat "$af" 2>/dev/null | tr -d '[:space:]')")
+		elif [ "$role" = "forward" ]; then
+			srv=$(config_get "$section" server 2>/dev/null)
+			# find the server section's remote_addr
+			ra=""
+			for s in $(uci show tailcat 2>/dev/null | sed -n 's/^tailcat\.\([^.]*\)\.remote_addr=.*$/\1/p' | sort -u); do
+				sn=$(uci -q get tailcat.$s.name || echo "$s")
+				if [ "$sn" = "$srv" ] || [ "$s" = "$srv" ]; then
+					ra=$(uci -q get tailcat.$s.remote_addr || echo "")
+					break
+				fi
+			done
+			[ -n "$ra" ] && host=$("$DERP_INFO_HELPER" "$ra")
+		fi
+		[ -n "$host" ] && printf '%s' "$host" > "$derp_file"
+	) &
 
 	# DNS publishing (serve instances only, opt-in via dns_publish=1).
 	# tailcat writes its address to TAILCAT_ADDR_FILE only after key

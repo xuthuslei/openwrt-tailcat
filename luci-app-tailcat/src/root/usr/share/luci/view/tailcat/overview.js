@@ -14,47 +14,23 @@ return view.extend({
 			fs.exec('/usr/bin/tailcat', ['--version']).then(function (r) {
 			 return (r && r.stdout) ? r.stdout.trim() : 'n/a';
 			}).catch(function () { return 'n/a'; }),
-			// Resolve DERP relay hostname for each forward instance by
-			// looking up the referenced server's remote_addr, then running
-			// `tailcat parse` on it (literal tc… addrs) or on the TXT-
-			// resolved address (domains). Returns a map: section_id → host.
-			// uci.sections() is synchronous in this LuCI version.
+			// Read DERP relay hostnames that init.d wrote to
+			// /var/run/tailcat/<section>.derp. One fs.read per instance,
+			// resolved in parallel; returns a map: section_id → host.
 			(function () {
 				var secs = uci.sections('tailcat', 'instance') || [];
 				var tasks = [];
 				for (var j = 0; j < secs.length; j++) {
 					(function (sec) {
-						if (uci.get('tailcat', sec['.name'], 'role') !== 'forward') { return; }
-						var serverName = uci.get('tailcat', sec['.name'], 'server') || '';
-						var remote_addr = '';
-						var serverSecs = uci.sections('tailcat', 'server') || [];
-						for (var k = 0; k < serverSecs.length; k++) {
-							var sname = uci.get('tailcat', serverSecs[k]['.name'], 'name') || serverSecs[k]['.name'];
-							if (sname === serverName || serverSecs[k]['.name'] === serverName) {
-								remote_addr = uci.get('tailcat', serverSecs[k]['.name'], 'remote_addr') || '';
-								break;
-							}
-						}
-						if (!remote_addr) { return; }
-						var resolveFirst = !remote_addr.match(/^tc/i) && remote_addr.indexOf('.') >= 0;
 						var secId = sec['.name'];
-					if (resolveFirst) {
 						tasks.push(
-							fs.exec('/bin/sh', ['/usr/lib/tailcat/tailcat-derp-info.sh', remote_addr])
-								.then(function (r) { return [secId, (r && r.stdout) ? r.stdout.trim() : 'auto']; })
+							fs.read('/var/run/tailcat/' + secId + '.derp')
+								.then(function (content) {
+									var h = (content || '').trim();
+									return [secId, h ? h : 'auto'];
+								})
 								.catch(function () { return [secId, 'auto']; })
 						);
-					} else {
-							tasks.push(
-								fs.exec('/usr/bin/tailcat', ['parse', remote_addr])
-									.then(function (r) {
-										if (!r || !r.stdout) { return [secId, 'auto']; }
-										var m = r.stdout.match(/"HostName"\s*:\s*"([^"]+)"/);
-										return [secId, m ? m[1] : 'auto'];
-									})
-									.catch(function () { return [secId, 'auto']; })
-							);
-						}
 					})(secs[j]);
 				}
 				return Promise.all(tasks).then(function (pairs) {
