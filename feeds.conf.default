@@ -1,0 +1,18 @@
+# feeds.conf.default — example feed lines for an OpenWrt buildroot.
+#
+# Copy this file into the root of your OpenWrt source tree as
+# `feeds.conf.default` (or append the tailcat line to your existing
+# one), then:
+#
+#   ./scripts/feeds update -a
+#   ./scripts/feeds install -a
+#   make package/tailcat-core/compile V=s
+#   make package/tailcat/compile V=s
+#   make package/luci-app-tailcat/compile V=s
+#
+# The resulting ipk files land under:
+#   bin/packages/<arch>/tailcat/tailcat-core_*.ipk
+#   bin/packages/<arch>/tailcat/tailcat_*.ipk
+#   bin/packages/<arch>/tailcat/luci-app-tailcat_*.ipk
+
+src-git tailcat https://github.com/xuthuslei/openwrt-tailcat.git;main

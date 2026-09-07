@@ -14,7 +14,8 @@
 				"/etc/init.d/tailcat": [ "read", "exec" ],
 				"/usr/bin/tailcat": [ "stat", "exec" ],
 				"/bin/sh": [ "exec" ],
-				"/usr/lib/tailcat/tailcat-derp-info.sh": [ "exec" ]
+				"/usr/lib/tailcat/tailcat-derp-info.sh": [ "exec" ],
+				"/usr/lib/tailcat/tailcat-fetch-kernel.sh": [ "exec" ]
 			}
 		},
 		"write": {

@@ -89,26 +89,60 @@ opkg install tailcat_*.ipk luci-app-tailcat_*.ipk
 > To look up the architecture name: run `opkg print-architecture` on the router, or check the matching `Target`/`Subtarget` in the
 > [OpenWrt Table of Hardware](https://openwrt.org/toh/start).
 
-### Option 2: Compile from source
+### Option 2: Compile with OpenWrt (feed integration)
 
-Requires a full OpenWrt source tree + Go toolchain:
+This project ships three OpenWrt packages that can be compiled
+alongside the firmware, mirroring the
+[OpenWrt-nikki](https://github.com/nikkinikki-org/OpenWrt-nikki) feed
+layout:
+
+| Package | Contents |
+|---------|----------|
+| `tailcat-core` | UCI config, procd init script, per-instance helper, DNS/DERP helpers, LuCI menu/ACL scaffolding, **fetch-kernel helper** (no binary) |
+| `tailcat` | Prebuilt `tailcat` binary fetched at build time from upstream GitHub Releases |
+| `luci-app-tailcat` | LuCI JS views (overview, services, forwards, log) + i18n |
+
+**Steps:**
 
 ```sh
 cd <openwrt-source>
-git clone https://github.com/xuthuslei/openwrt-tailcat.git /tmp/openwrt-tailcat
-ln -s /tmp/openwrt-tailcat/tailcat           package/tailcat
-ln -s /tmp/openwrt-tailcat/luci-app-tailcat  package/luci-app-tailcat
 
+# 1. Add the feed (append to feeds.conf.default)
+echo "src-git tailcat https://github.com/xuthuslei/openwrt-tailcat.git;main" \
+    >> feeds.conf.default
+
+# 2. Update & install feeds
+./scripts/feeds update -a
+./scripts/feeds install -a
+
+# 3. Select packages in menuconfig
 make menuconfig
-#   Network -> VPN -> tailcat           (select)
-#   LuCI    -> Applications -> luci-app-tailcat (select)
+#   Network -> VPN -> tailcat-core        (the system kernel layer)
+#   Network -> VPN -> tailcat             (prebuilt binary, optional)
+#   LuCI    -> Applications -> luci-app-tailcat
 
+# 4. Build packages
+make package/tailcat-core/compile V=s
 make package/tailcat/compile V=s
 make package/luci-app-tailcat/compile V=s
+
+# 5. Or build the whole firmware
+make -j$(nproc)
 ```
 
-> The `tailcat` package depends on the Go toolchain to compile `github.com/tailscale/tailcat/cmd/tailcat` from source.
-> If your build environment is constrained, prefer Option 1's prebuilt ipks.
+The resulting `.ipk` files land under `bin/packages/<arch>/tailcat/`.
+
+> **Note:** the `tailcat` package does **not** compile tailcat from
+> source. At build time it downloads the matching prebuilt binary from
+> `https://github.com/tailscale/tailcat/releases` and packages it. To
+> bake a specific version into the firmware, set `PKG_VERSION` in
+> `tailcat/Makefile`.
+
+See [COMPILATION.md](COMPILATION.md) for full details, including:
+- How the prebuilt binary is fetched and mapped to `GOARCH`
+- Runtime kernel download via the LuCI "Download latest kernel" button
+- Feed installation on a running router (`feed.sh`)
+- Troubleshooting
 
 ## Usage
 

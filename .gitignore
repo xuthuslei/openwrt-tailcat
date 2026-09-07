@@ -1,6 +1,12 @@
 # Compiled Lua sources
 luac.out
 
+# AtomCode per-project state
+.atomcode/
+
+# Local dist/build output
+dist/
+
 # luarocks build files
 *.src.rock
 *.zip

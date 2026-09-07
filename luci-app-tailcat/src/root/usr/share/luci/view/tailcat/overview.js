@@ -1,10 +1,68 @@
-'use strict';'require view';'require form';'require fs';'require uci';'require rpc';
+'use strict';'require view';'require form';'require fs';'require uci';'require rpc';'require ui';
 
 var callServiceList = rpc.declare({
 	object: 'service',
 	method: 'list',
 	params: ['name']
 });
+
+// Fetch the latest tailcat kernel binary from upstream GitHub Releases.
+// Delegates to /usr/lib/tailcat/tailcat-fetch-kernel.sh which downloads
+// the matching GOARCH tarball, installs it to /usr/bin/tailcat, and
+// reloads the service.
+function fetchLatestKernel(ev) {
+	var btn = ev.target;
+	var orig = btn.value || btn.textContent;
+	btn.disabled = true;
+	btn.textContent = _('Downloading…');
+
+	// Optional version input (empty = use /etc/tailcat-version or default).
+	var verInput = document.getElementById('tailcat-fetch-version');
+	var ver = verInput ? (verInput.value || '').trim() : '';
+
+	fs.exec('/usr/lib/tailcat/tailcat-fetch-kernel.sh', [ver])
+		.then(function (res) {
+			btn.disabled = false;
+			btn.textContent = orig;
+			var msg = (res && res.stdout) ? res.stdout.trim() : '';
+			var err = (res && res.stderr) ? res.stderr.trim() : '';
+			if (res && res.code === 0 && msg) {
+				ui.showModal(_('Tailcat kernel updated'), [
+					E('p', {}, _('Successfully installed tailcat kernel version:') + ' ' + msg),
+					E('p', {}, _('The service has been reloaded.')),
+					E('div', { 'class': 'right' }, [
+						E('button', {
+							'class': 'cbi-button cbi-button-positive',
+							'click': function () { ui.hideModal(); window.location.reload(); }
+						}, _('OK'))
+					])
+				]);
+			} else {
+				ui.showModal(_('Download failed'), [
+					E('p', {}, err || _('Could not download the tailcat kernel binary.')),
+					E('div', { 'class': 'right' }, [
+						E('button', {
+							'class': 'cbi-button cbi-button-neutral',
+							'click': ui.hideModal
+						}, _('Dismiss'))
+					])
+				]);
+			}
+		})
+		.catch(function (e) {
+			btn.disabled = false;
+			btn.textContent = orig;
+			ui.showModal(_('Download failed'), [
+				E('p', {}, String(e || _('Unknown error'))),
+				E('div', { 'class': 'right' }, [
+					E('button', {
+						'class': 'cbi-button cbi-button-neutral',
+						'click': ui.hideModal
+					}, _('Dismiss'))
+				])
+			]);
+		});
+}
 
 return view.extend({
  load: function () {
@@ -335,6 +393,33 @@ return view.extend({
 		o.placeholder = '/var/log/tailcat/my_web.log';
 		o.modalonly = true;
 
-		return m.render();
+		var mapPromise = m.render();
+
+		// "Download latest kernel" button — fetches a prebuilt tailcat
+		// binary from upstream GitHub Releases into /usr/bin/tailcat.
+		// Rendered after the Map so it sits at the bottom of the page.
+		return mapPromise.then(function (mapNode) {
+			var footer = E('div', { 'class': 'cbi-section-node', 'style': 'margin-top:20px;padding:12px;border:1px solid #e0e0e0;border-radius:4px;background:#fafafa' }, [
+				E('h3', {}, _('Kernel binary')),
+				E('p', { 'style': 'margin:8px 0;color:#666' },
+					_('Current version: ') + (binaryVersion || 'n/a') +
+					_('. Click the button to download (or upgrade) the latest tailcat kernel from the upstream GitHub Releases.')),
+				E('div', { 'style': 'display:flex;gap:8px;align-items:center;margin-top:8px' }, [
+					E('input', {
+						'id': 'tailcat-fetch-version',
+						'type': 'text',
+						'placeholder': _('version (blank=latest configured)'),
+						'style': 'width:220px;padding:4px 6px;border:1px solid #ccc;border-radius:3px'
+					}),
+					E('button', {
+						'class': 'cbi-button cbi-button-action',
+						'style': 'padding:6px 14px',
+						'click': fetchLatestKernel
+					}, _('Download latest kernel'))
+				])
+			]);
+			mapNode.appendChild(footer);
+			return mapNode;
+		});
 	}
 });
