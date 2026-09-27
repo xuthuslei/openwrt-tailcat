@@ -69,7 +69,7 @@ The resulting `.ipk` files are placed under:
 ```
 bin/packages/<arch>/tailcat/
 ├── tailcat-core_0.1.0-1_all.ipk
-├── tailcat_0.6.0-1_<arch>.ipk
+├── tailcat_0.7.0-1_<arch>.ipk
 └── luci-app-tailcat_0.1.0-1_all.ipk
 ```
 
@@ -147,7 +147,7 @@ it invokes `/usr/lib/tailcat/tailcat-fetch-kernel.sh`, which:
 
 You can optionally specify a version in the input field next to the
 button. Leave it blank to use the version recorded in
-`/etc/tailcat-version` (or the default `0.6.0`).
+`/etc/tailcat-version` (or the default `0.7.0`).
 
 ### Manual fetch from the command line
 
@@ -156,10 +156,10 @@ button. Leave it blank to use the version recorded in
 /usr/lib/tailcat/tailcat-fetch-kernel.sh
 
 # Specify version
-/usr/lib/tailcat/tailcat-fetch-kernel.sh 0.6.0
+/usr/lib/tailcat/tailcat-fetch-kernel.sh 0.7.0
 
 # Specify version and GOARCH
-/usr/lib/tailcat/tailcat-fetch-kernel.sh 0.6.0 arm64
+/usr/lib/tailcat/tailcat-fetch-kernel.sh 0.7.0 arm64
 ```
 
 ---

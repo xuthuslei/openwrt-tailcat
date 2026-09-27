@@ -26,7 +26,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=tailcat
-PKG_VERSION:=0.6.0
+PKG_VERSION:=0.7.0
 PKG_RELEASE:=1
 
 PKG_LICENSE:=MIT
@@ -79,7 +79,7 @@ endef
 define goarch_for_arch
 $(strip \
   $(if $(filter aarch64%,$(ARCH)),arm64, \
-  $(if $(filter arm%,$(ARCH)),arm, \
+  $(if $(filter arm%,$(ARCH)),armv7, \
   $(if $(filter mipsel%,$(ARCH)),mipsle, \
   $(if $(filter mips%,$(ARCH)),mips, \
   $(if $(filter x86_64,$(ARCH)),amd64, \

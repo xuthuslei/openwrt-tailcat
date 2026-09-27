@@ -7,7 +7,7 @@
 #   tailcat-fetch-kernel.sh [version] [goarch]
 #
 #   version  — tailcat release tag without the leading "v".
-#              Default: read from /etc/tailcat-version or "0.6.0".
+#              Default: read from /etc/tailcat-version or "0.7.0".
 #   goarch   — Go GOARCH (amd64, arm64, arm, …).
 #              Default: auto-detect from `uname -m`.
 #
@@ -31,7 +31,7 @@ if [ -z "$VERSION" ]; then
 		VERSION=$(cat /etc/tailcat-version | tr -d '[:space:]')
 	fi
 fi
-[ -n "$VERSION" ] || VERSION="0.6.0"
+[ -n "$VERSION" ] || VERSION="0.7.0"
 
 # Auto-detect GOARCH from uname -m.
 detect_goarch() {
@@ -77,6 +77,35 @@ elif command -v curl >/dev/null 2>&1; then
 else
 	echo "fetch-kernel: neither wget nor curl available" >&2
 	exit 3
+fi
+
+# Verify sha256 against the upstream checksums.txt (goreleaser format:
+# "<hex>  <filename>"). Best-effort: skips if no sha256sum/bb tool.
+SUMTOOL=""
+command -v sha256sum >/dev/null 2>&1 && SUMTOOL=sha256sum
+[ -z "$SUMTOOL" ] && command -v bb >/dev/null 2>&1 && SUMTOOL=bb
+TARBALL_NAME="tailcat_${VERSION}_linux_${GOARCH}.tar.gz"
+if [ -n "$SUMTOOL" ]; then
+	if command -v wget >/dev/null 2>&1; then
+		wget -q -O "$TMP/checksums.txt" "$UPSTREAM/v$VERSION/checksums.txt" || true
+	elif command -v curl >/dev/null 2>&1; then
+		curl -fsSL -o "$TMP/checksums.txt" "$UPSTREAM/v$VERSION/checksums.txt" || true
+	fi
+	if [ -s "$TMP/checksums.txt" ]; then
+		EXPECTED=$(sed -n "s/^\([0-9a-fA-F]\{64\}\)[[:space:]]\+[[:space:]]*${TARBALL_NAME}\$/\1/p" "$TMP/checksums.txt" | head -1)
+		ACTUAL=$($SUMTOOL "$TMP/tailcat.tar.gz" | awk '{print $1}')
+		if [ -n "$EXPECTED" ]; then
+			if [ "$ACTUAL" != "$EXPECTED" ]; then
+				echo "fetch-kernel: sha256 MISMATCH (expected $EXPECTED, got $ACTUAL), aborting" >&2
+				exit 6
+			fi
+			echo "fetch-kernel: sha256 verified" >&2
+		else
+			echo "fetch-kernel: tarball not listed in checksums.txt, skipping verify" >&2
+		fi
+	else
+		echo "fetch-kernel: checksums.txt unavailable, skipping verify" >&2
+	fi
 fi
 
 # Extract.

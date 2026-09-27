@@ -72,9 +72,9 @@ Download the file matching your router architecture:
 
 | Architecture (opkg arch) | ipk file | Typical device |
 |--------------------------|----------|----------------|
-| `x86_64` | `tailcat_0.6.0-1_x86_64.ipk` | x86 software router |
-| `aarch64_cortexa53` | `tailcat_0.6.0-1_aarch64_cortexa53.ipk` | Raspberry Pi 3, some ARM routers |
-| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.6.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx, IPQ40xx, etc. |
+| `x86_64` | `tailcat_0.7.0-1_x86_64.ipk` | x86 software router |
+| `aarch64_cortexa53` | `tailcat_0.7.0-1_aarch64_cortexa53.ipk` | Raspberry Pi 3, some ARM routers |
+| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.7.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx, IPQ40xx, etc. |
 | `all` | `luci-app-tailcat_0.1.0-1_all.ipk` | LuCI interface, universal for all archs |
 
 Install:
@@ -292,7 +292,7 @@ This plugin deliberately reuses the LuCI layout and UCI config conventions of ex
 
 ## Roadmap / TODO
 
-Tracked against tailcat upstream `v0.6.0`. Status legend: `[x]` done · `[ ]` open.
+Tracked against tailcat upstream `v0.7.0`. Status legend: `[x]` done · `[ ]` open.
 
 ### P0 — correctness & must-fix
 
@@ -304,8 +304,8 @@ Tracked against tailcat upstream `v0.6.0`. Status legend: `[x]` done · `[ ]` op
 
 - [x] **F-EXIT-FWD**: forward through exit-node servers to arbitrary `IP:port` targets (`local:remote-ip:remote-port` form). `tailcat-instance.sh` emits the 3-part mapping when `remote_host` is set; overview.js exposes a "Remote host (exit-node)" field in the forward modal. (commit `0b31521`)
 - [x] **F-GENKEY**: persistent keys via `tailcat genkey`. New uci-defaults script auto-generates the `default` server key on first install; per-instance `--key=<name>` support in `tailcat-instance.sh`; "Persistent key name" field in overview.js + services.js. DNS-published services now keep a stable address across restarts. (commit `0b31521`)
-- [ ] **F-UDP**: application-layer UDP support — **upstream-blocked in tailcat 0.6.0**. The Go library and `tailcat socks` support UDP, but the `serve` and `forward` subcommands expose no `--protocol=udp` flag (forward is TCP-only). Revisit when upstream ships a UDP CLI surface.
-- [x] **F-SSH-AUTH**: `serve ssh` public-key authentication (`--ssh-authorized-keys`, upstream v0.6.0 #88). New `serve_kind=ssh_auth` runs `tailcat serve --ssh-authorized-keys=<sources> ssh`; the `ssh_authorized_keys` field is shown conditionally on `serve_kind=ssh_auth` in overview.js and services.js. Existing `serve_kind=ssh` (auth-free) is unchanged. Multi-select SSH key sources added: `ssh_use_dropbear_keys` (Flag, default=1, includes `/etc/dropbear/authorized_keys`), `ssh_github_users` (Value, e.g. `alice,bob`), `ssh_extra_key_files` (Value, additional file paths). The three sources are assembled into the `--ssh-authorized-keys` CSV by `tailcat-instance.sh`.
+- [ ] **F-UDP**: application-layer UDP support — **upstream-blocked in tailcat 0.7.0**. The Go library and `tailcat socks` support UDP, but the `serve` and `forward` subcommands expose no `--protocol=udp` flag (forward is TCP-only). Revisit when upstream ships a UDP CLI surface.
+- [x] **F-SSH-AUTH**: `serve ssh` public-key authentication (`--ssh-authorized-keys`, upstream v0.7.0 #88). New `serve_kind=ssh_auth` runs `tailcat serve --ssh-authorized-keys=<sources> ssh`; the `ssh_authorized_keys` field is shown conditionally on `serve_kind=ssh_auth` in overview.js and services.js. Existing `serve_kind=ssh` (auth-free) is unchanged. Multi-select SSH key sources added: `ssh_use_dropbear_keys` (Flag, default=1, includes `/etc/dropbear/authorized_keys`), `ssh_github_users` (Value, e.g. `alice,bob`), `ssh_extra_key_files` (Value, additional file paths). The three sources are assembled into the `--ssh-authorized-keys` CSV by `tailcat-instance.sh`.
 - [x] **F-DNS-PUBLISH**: publish a serve instance's tailcat address to a Cloudflare TXT record. New `dns_publish` flag + `dns_name` field on serve instances (overview.js + services.js); `general.cf_api_token`/`cf_zone_id` credentials on the Overview page. `tailcat-dns-publish.sh` writes `tailcat=<addr>` (bare value, no quotes) at the FQDN; init.d publishes after the address file populates and unpublishes on stop/reload. The publish poll window was extended from 10s to 60s because tailcat only writes `TAILCAT_ADDR_FILE` after key load + DERP bootstrap (15–25s on cold start). Atomic read with `tc*` validation added because tailcat continuously rewrites the addr file (BusyBox `tr -d '[:space:]'` was corrupting addresses by stripping non-space chars). TXT content wrapped in literal double quotes per Cloudflare requirement.
 - [x] **F-DNS-RESOLVE**: connect to a DNS-published remote server. `server` sections may now carry a domain name in `remote_addr`; `tailcat-instance.sh` detects non-`tc...` values and resolves them via `tailcat-dns-resolve.sh` (dig → nslookup → host, stripping `tailcat=` prefix).
 - [x] **F-SERVE-FILES**: `serve files` SFTP server with `--files=dir:ro|rw|wo|wo+`. New `serve_kind=files` + directory Value + mode ListValue (conditional). Modes: `ro` (read-only, default), `rw` (read-write), `wo` (write-only flat), `wo+` (write-only recursive). (commit `0b31521`)

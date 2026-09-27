@@ -72,9 +72,9 @@ openwrt-tailcat/
 
 | 架构（opkg arch） | ipk 文件 | 典型设备 |
 |-------------------|----------|----------|
-| `x86_64` | `tailcat_0.6.0-1_x86_64.ipk` | x86 软路由 |
-| `aarch64_cortexa53` | `tailcat_0.6.0-1_aarch64_cortexa53.ipk` | 树莓派 3、部分 ARM 路由 |
-| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.6.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx、IPQ40xx 等 |
+| `x86_64` | `tailcat_0.7.0-1_x86_64.ipk` | x86 软路由 |
+| `aarch64_cortexa53` | `tailcat_0.7.0-1_aarch64_cortexa53.ipk` | 树莓派 3、部分 ARM 路由 |
+| `arm_cortex-a7_neon-vfpv4` | `tailcat_0.7.0-1_arm_cortex-a7_neon-vfpv4.ipk` | MT76xx、IPQ40xx 等 |
 | `all` | `luci-app-tailcat_0.1.0-1_all.ipk` | LuCI 界面，所有架构通用 |
 
 安装：
@@ -258,7 +258,7 @@ config instance 'remote_web'
 
 ## 路线图 / TODO
 
-对照 tailcat 上游 `v0.6.0` 跟踪。状态图例：`[x]` 已完成 · `[ ]` 待办。
+对照 tailcat 上游 `v0.7.0` 跟踪。状态图例：`[x]` 已完成 · `[ ]` 待办。
 
 ### P0 — 正确性 / 必修
 
@@ -270,8 +270,8 @@ config instance 'remote_web'
 
 - [x] **F-EXIT-FWD**：通过 exit-node 服务器转发到任意 `IP:port` 目标（`local:remote-ip:remote-port` 形式）。设置 `remote_host` 时，`tailcat-instance.sh` 输出三段式映射；overview.js 在 forward 弹窗提供 "Remote host (exit-node)" 字段。（提交 `0b31521`）
 - [x] **F-GENKEY**：通过 `tailcat genkey` 持久化密钥。新增 uci-defaults 脚本，首次安装时自动生成 `default` 服务器密钥；`tailcat-instance.sh` 支持每实例 `--key=<name>`；overview.js + services.js 提供 "Persistent key name" 字段。DNS 发布的服务现在重启后保持稳定地址。（提交 `0b31521`）
-- [ ] **F-UDP**：应用层 UDP 支持 —— **在 tailcat 0.6.0 中受上游限制**。Go 库与 `tailcat socks` 支持 UDP，但 `serve` 和 `forward` 子命令未暴露 `--protocol=udp` 标志（forward 仅支持 TCP）。待上游提供 UDP CLI 接口后再议。
-- [x] **F-SSH-AUTH**：`serve ssh` 公钥认证（`--ssh-authorized-keys`，上游 v0.6.0 #88）。新增 `serve_kind=ssh_auth`，运行 `tailcat serve --ssh-authorized-keys=<sources> ssh`；`ssh_authorized_keys` 字段仅在 `serve_kind=ssh_auth` 时条件显示（overview.js 与 services.js）。现有 `serve_kind=ssh`（免认证）保持不变。多选 SSH 公钥来源已添加：`ssh_use_dropbear_keys`（Flag，默认开，包含 `/etc/dropbear/authorized_keys`）、`ssh_github_users`（Value，如 `alice,bob`）、`ssh_extra_key_files`（Value，额外文件路径）。三个来源由 `tailcat-instance.sh` 组装为 `--ssh-authorized-keys` CSV。
+- [ ] **F-UDP**：应用层 UDP 支持 —— **在 tailcat 0.7.0 中受上游限制**。Go 库与 `tailcat socks` 支持 UDP，但 `serve` 和 `forward` 子命令未暴露 `--protocol=udp` 标志（forward 仅支持 TCP）。待上游提供 UDP CLI 接口后再议。
+- [x] **F-SSH-AUTH**：`serve ssh` 公钥认证（`--ssh-authorized-keys`，上游 v0.7.0 #88）。新增 `serve_kind=ssh_auth`，运行 `tailcat serve --ssh-authorized-keys=<sources> ssh`；`ssh_authorized_keys` 字段仅在 `serve_kind=ssh_auth` 时条件显示（overview.js 与 services.js）。现有 `serve_kind=ssh`（免认证）保持不变。多选 SSH 公钥来源已添加：`ssh_use_dropbear_keys`（Flag，默认开，包含 `/etc/dropbear/authorized_keys`）、`ssh_github_users`（Value，如 `alice,bob`）、`ssh_extra_key_files`（Value，额外文件路径）。三个来源由 `tailcat-instance.sh` 组装为 `--ssh-authorized-keys` CSV。
 - [x] **F-DNS-PUBLISH**：将 serve 实例的 tailcat 地址发布到 Cloudflare TXT 记录。serve 实例新增 `dns_publish` 开关 + `dns_name` 字段（overview.js + services.js）；概览页配置 `general.cf_api_token`/`cf_zone_id` 凭据。`tailcat-dns-publish.sh` 在 FQDN 写入 `tailcat=<addr>`（裸值、不带引号）；init.d 在地址文件生成后发布，停止/重载时取消发布。发布轮询窗口从 10s 延长到 60s，因为 tailcat 仅在密钥加载 + DERP 引导完成后才写 `TAILCAT_ADDR_FILE`（冷启动 15–25s）。增加原子读取 + `tc*` 校验，因为 tailcat 持续重写 addr 文件（BusyBox `tr -d '[:space:]'` 会剥离非空白字符，损坏地址）。TXT 内容按 Cloudflare 要求用字面双引号包裹。
 - [x] **F-DNS-RESOLVE**：连接 DNS 发布的远端服务器。`server` 段的 `remote_addr` 现可填域名；`tailcat-instance.sh` 检测非 `tc...` 值并通过 `tailcat-dns-resolve.sh` 解析（dig → nslookup → host，剥离 `tailcat=` 前缀）。
 - [x] **F-SERVE-FILES**：`serve files` SFTP 服务器，支持 `--files=dir:ro|rw|wo|wo+`。新增 `serve_kind=files` + 目录 Value + 模式 ListValue（条件显示）。模式：`ro`（只读，默认）、`rw`（读写）、`wo`（只写扁平）、`wo+`（只写递归）。（提交 `0b31521`）

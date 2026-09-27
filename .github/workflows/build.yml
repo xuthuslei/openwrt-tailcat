@@ -25,7 +25,7 @@ permissions:
   contents: write
 
 env:
-  TAILCAT_VERSION: "0.6.0"
+  TAILCAT_VERSION: "0.7.0"
 
 jobs:
   build-tailcat:
@@ -62,9 +62,17 @@ jobs:
         run: |
           set -eux
           mkdir -p dl
+          TARBALL="tailcat_${TAILCAT_VERSION}_linux_${{ matrix.goarch }}.tar.gz"
           curl -fsSL \
-            "https://github.com/tailscale/tailcat/releases/download/v${TAILCAT_VERSION}/tailcat_${TAILCAT_VERSION}_linux_${{ matrix.goarch }}.tar.gz" \
+            "https://github.com/tailscale/tailcat/releases/download/v${TAILCAT_VERSION}/${TARBALL}" \
             -o dl/tailcat.tar.gz
+          # Verify sha256 against upstream checksums.txt (F-SHA256-VERIFY).
+          curl -fsSL \
+            "https://github.com/tailscale/tailcat/releases/download/v${TAILCAT_VERSION}/checksums.txt" \
+            -o dl/checksums.txt
+          EXPECTED=$(grep " ${TARBALL}\$" dl/checksums.txt | awk '{print $1}')
+          [ -n "$EXPECTED" ] || { echo "tarball not listed in checksums.txt"; exit 1; }
+          echo "$EXPECTED  dl/tailcat.tar.gz" | sha256sum -c -
           tar -xzf dl/tailcat.tar.gz -C dl
           find dl -type f -name 'tailcat' -o -name 'tailcat_*'
           # Locate the tailcat binary (inside a dir or at root).
